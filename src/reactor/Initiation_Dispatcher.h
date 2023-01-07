@@ -96,7 +96,7 @@ class Initiation_Dispatcher
         }
         
         // Entry point into the reactive event loop.
-        void handle_events(const struct timeval& tv = {0, 0})
+        void handle_events(const struct timeval& tv = {10, 0})
         {   
             //set of socket descriptors 
             fd_set readfds, writefds, exceptionfds;
@@ -112,10 +112,12 @@ class Initiation_Dispatcher
                 int sd = it->first->get_handle();
                 if(sd > 0)
                 {
-                    if(it->second == ACCEPT_EVENT || READ_EVENT || CLOSE_EVENT)
+                    if((it->second & ACCEPT_EVENT) || (it->second & READ_EVENT))
                         FD_SET(sd, &readfds);
-                    else if(it->second == WRITE_EVENT)
-                        FD_SET(sd, &writefds);
+                    if(it->second & WRITE_EVENT)
+                        //FD_SET(sd, &writefds);        //No write event needed!
+                    if(it->second & EXCEPTION_EVENT)
+                        FD_SET(sd, &exceptionfds);
                 }
                 //highest file descriptor number, need it for the select function 
                 if(sd > max_sd)  
@@ -125,7 +127,7 @@ class Initiation_Dispatcher
             //wait for an activity on one of the sockets , timeout is NULL , 
             //so wait indefinitely
             struct timeval tv_copy = tv;    //select modifies tv
-            int retval = select(max_sd+1, &readfds, NULL/*&writefds*/, NULL/*&exceptionfds*/, NULL/*&tv_copy*/);
+            int retval = select(max_sd+1, &readfds, &writefds, &exceptionfds, NULL/*&tv_copy*/);
             
             if( retval < 0 && errno != EINTR )
                 cout << "select error" << endl;

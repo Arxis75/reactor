@@ -19,9 +19,10 @@ class Discovery_PeerHandler : public Event_Handler
             socklen_t m_peer_address_length = sizeof(m_peer_address);
             assert( !getpeername (m_peer_socket , (struct sockaddr *)&m_peer_address , &m_peer_address_length ) );
 
-            // Register with the dispatcher for READ events.
+            // Register with the dispatcher for READ/WRITE events.
             Initiation_Dispatcher::GetInstance().register_handler(this, READ_EVENT);
             Initiation_Dispatcher::GetInstance().register_handler(this, WRITE_EVENT);
+            Initiation_Dispatcher::GetInstance().register_handler(this, EXCEPTION_EVENT);
         }
         
         // Hook method that handles communication with clients.
@@ -42,6 +43,7 @@ class Discovery_PeerHandler : public Event_Handler
             {
                 Initiation_Dispatcher::GetInstance().remove_handler(this, READ_EVENT);
                 Initiation_Dispatcher::GetInstance().remove_handler(this, WRITE_EVENT);
+                Initiation_Dispatcher::GetInstance().remove_handler(this, EXCEPTION_EVENT);
                 close(m_peer_socket);
                 cout << "Socket: " << m_peer_socket << " has been closed." << endl;
                 delete this;
