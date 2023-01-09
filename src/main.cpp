@@ -8,7 +8,7 @@ int main(int argc , char *argv[])
 {   
     // Initialize logging server endpoint and
     // register with the Initiation_Dispatcher.
-    Discovery_Acceptor da(PORT);
+    PeerAcceptor pa(PORT);
 
     // Main event loop that handles client
     // logging records and connection requests.

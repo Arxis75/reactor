@@ -1,5 +1,6 @@
 #include "Event_Handler.h"
 
+#include <sys/epoll.h>      //EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLPRI|EPOLLET
 #include <netinet/tcp.h>    //TCP_KEEPCNT, TCP_KEEPIDLE, TCP_KEEPINTVL
 #include <unistd.h>         //close socket
 #include <string.h>         //memset
@@ -11,66 +12,67 @@
 using std::cout;
 using std::endl;
 
-Discovery_PeerHandler::Discovery_PeerHandler(const int socket)
-    : m_peer_socket(socket)
+#define CONNECTION_BACKLOG_SIZE 10
+#define FD_READ_BUFFER_SIZE 1024
+
+PeerHandler::PeerHandler(const int fd)
+    : m_peer_socket(fd)
 {
     socklen_t m_peer_address_length = sizeof(m_peer_address);
     assert( !getpeername (m_peer_socket , (struct sockaddr *)&m_peer_address , &m_peer_address_length ) );
 
-    // Register with the dispatcher for READ/WRITE events.
-    Initiation_Dispatcher::GetInstance().register_handler(this, READ_EVENT);
-    Initiation_Dispatcher::GetInstance().register_handler(this, WRITE_EVENT);
-    Initiation_Dispatcher::GetInstance().register_handler(this, EXCEPTION_EVENT);
+    // Register with the dispatcher for edge-triggered events.
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
+    ev.data.ptr = (void*)this;
+    Initiation_Dispatcher::GetInstance().register_handler(ev);
 }
 
 // Hook method that handles communication with clients.
-int Discovery_PeerHandler::handle_event(const Event_Type et)
+int PeerHandler::handle_event(const struct epoll_event event)
 {
-    Event_Type ev = et;
-    if(ev == READ_EVENT)
+    uint32_t ev = event.events;
+    if( (ev & EPOLLRDHUP) || (ev & EPOLLHUP) || (ev & EPOLLERR) )
     {
-        char buffer[1024];        // + 1 for the null char
-        memset(buffer, 0, sizeof(buffer));
-        int ret = recv(m_peer_socket, buffer, 1024, 0);
-
-        // the errno conditions handle the exceptional case where
-        // the fd was announced ready and the socket operation would hang
-        assert(ret >= 0 || errno == EWOULDBLOCK || errno == EAGAIN);
-
-        if( ret > 0 )
-            cout << "@" << inet_ntoa(m_peer_address.sin_addr) << ":" << ntohs(m_peer_address.sin_port) << " (socket = " << m_peer_socket << "), receiving: " << buffer << endl;               
-        else if( ret == -1 && (errno == EWOULDBLOCK || errno == EAGAIN) )
-            //should be exceptionnal
-            cout << "@" << inet_ntoa(m_peer_address.sin_addr) << ":" << ntohs(m_peer_address.sin_port) << ", socket " << m_peer_socket << " has error EWOULDBLOCK | EAGAIN!" << buffer << endl;                               
-        else
-            //if socket is in abnormal error or client hangs up
-            ev = CLOSE_EVENT;
-    }
-    else if(ev == WRITE_EVENT)
-    {
-        //TODO
-    }
-    else if(ev == EXCEPTION_EVENT || ev == TIMEOUT_EVENT || ev == SIGNAL_EVENT)
-    {
-        //TODO
-    }
-
-    if(ev == CLOSE_EVENT)
-    {
-        Initiation_Dispatcher::GetInstance().remove_handler(this, READ_EVENT);
-        Initiation_Dispatcher::GetInstance().remove_handler(this, WRITE_EVENT);
-        Initiation_Dispatcher::GetInstance().remove_handler(this, EXCEPTION_EVENT);
+        Initiation_Dispatcher::GetInstance().remove_handler(m_peer_socket);
         
         cout << "Socket: " << m_peer_socket << " has been closed." << endl;
         
         close(m_peer_socket);
         delete this;
     }
+    else
+    {
+        if(ev & EPOLLIN)
+        {
+            char buffer[FD_READ_BUFFER_SIZE];
+            memset(buffer, 0, sizeof(buffer));
+
+            while( true )
+            {
+                int ret = recv(m_peer_socket, buffer, 1024, 0);
+                if( ret == -1 && (errno==EAGAIN) )
+                    break;
+                else
+                {
+                    cout << "@" << inet_ntoa(m_peer_address.sin_addr) << ":" << ntohs(m_peer_address.sin_port) << " (socket = " << m_peer_socket << "), " << ret << " Bytes received" << endl;
+                    cout << buffer << endl;
+                    memset(buffer, 0, sizeof(buffer));
+                }
+            } 
+        }
+        
+        if(ev & EPOLLOUT)
+            cout << "@" << inet_ntoa(m_peer_address.sin_addr) << ":" << ntohs(m_peer_address.sin_port) << " (socket = " << m_peer_socket << ") ready for sending" << endl;
+   }
+
     return 0;
 }
 
-Discovery_Acceptor::Discovery_Acceptor(const uint16_t port)
+PeerAcceptor::PeerAcceptor(const uint16_t port)
 {
+    int master_socket;
     struct sockaddr_in address;
 
     address.sin_family = AF_INET;
@@ -89,16 +91,20 @@ Discovery_Acceptor::Discovery_Acceptor(const uint16_t port)
     
     assert( !bind(m_master_socket, (struct sockaddr *)&address, sizeof(address)) );
     
-    int connection_queue_length = 3;
-    assert( !listen(m_master_socket, connection_queue_length) );
+    assert( !listen(m_master_socket, CONNECTION_BACKLOG_SIZE) );
 
-    Initiation_Dispatcher::GetInstance().register_handler(this, ACCEPT_EVENT);
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.events = EPOLLIN;
+    ev.data.ptr = (void*)this;
+    Initiation_Dispatcher::GetInstance().register_handler(ev);
 }
 
 // Factory method that accepts a new connection and creates a PeerHandler
-int Discovery_Acceptor::handle_event(const Event_Type et)
+int PeerAcceptor::handle_event(const struct epoll_event event)
 {
-    if(et == ACCEPT_EVENT)
+    uint32_t ev = event.events;
+    if(ev & EPOLLIN)
     {
         struct sockaddr_in clientaddr;
         socklen_t clientaddrlen = sizeof(clientaddr);
@@ -126,7 +132,7 @@ int Discovery_Acceptor::handle_event(const Event_Type et)
             cout << "@" << inet_ntoa(clientaddr.sin_addr) << ":" << ntohs(clientaddr.sin_port) << " (socket = " << new_socket << ") connected." << endl;
 
             // Create a new Logging Handler.
-            Discovery_PeerHandler *handler = new Discovery_PeerHandler(new_socket);
+            PeerHandler *handler = new PeerHandler(new_socket);
         }
     }
     return 0;

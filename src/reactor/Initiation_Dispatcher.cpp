@@ -1,5 +1,7 @@
 #include "Initiation_Dispatcher.h"
 
+#include <sys/epoll.h>
+#include <fcntl.h>      //O_CLOEXEC
 #include <sys/ioctl.h>  //ioctl
 #include <errno.h>      //errno
 #include <sys/time.h>   //struct timeval
@@ -12,131 +14,41 @@ using std::cout;
 using std::endl;
 using std::map;
 
+#define MAX_EVENTS 10   //max simultaneous events for a single epoll_wait
+
+Initiation_Dispatcher::Initiation_Dispatcher()
+{
+    m_epoll_fd = epoll_create1(O_CLOEXEC);
+    assert( m_epoll_fd > 0 );
+}
+
 // Register an Event_Handler of a particular
 // Event_Type (e.g., READ_EVENT, ACCEPT_EVENT,
 // etc.).
-void Initiation_Dispatcher::register_handler(Event_Handler *eh, const Event_Type et)
+void Initiation_Dispatcher::register_handler(struct epoll_event ev)
 {
-    assert(eh);
-    auto it = m_eh.find(eh);
-    if( it != m_eh.end() )
-        it->second |= et;
-    else
-        m_eh[eh] = et;
+    assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, static_cast<Event_Handler*>(ev.data.ptr)->get_handle(), &ev) );
 }
 
 // Remove an Event_Handler of a particular
 // Event_Type.
-void Initiation_Dispatcher::remove_handler(Event_Handler *eh, const Event_Type et)
+void Initiation_Dispatcher::remove_handler(int fd)
 {
-    assert(eh);
-    auto it = m_eh.find(eh);
-    if( it != m_eh.end() )
-    {
-        it->second &= ~et;
-        if(m_eh[eh] == NO_EVENT)
-            m_eh.erase(eh);
-    }
+    assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, fd, NULL) );
 }
 
 // Entry point into the reactive event loop.
-void Initiation_Dispatcher::handle_events(const struct timeval& tv)
+void Initiation_Dispatcher::handle_events(const int ms_timeout)
 {   
-    //set of socket descriptors 
-    fd_set readfds, writefds, exceptionfds;
-
-    //clear the socket set 
-    FD_ZERO(&readfds);  
-    FD_ZERO(&writefds);
-    FD_ZERO(&exceptionfds);
-
-    int max_sd = 0;
-    for(auto it=m_eh.begin();it!=m_eh.end();it++)
-    {
-        int sd = it->first->get_handle();
-        if(sd > 0)
-        {
-            if((it->second & ACCEPT_EVENT) || (it->second & READ_EVENT))
-                FD_SET(sd, &readfds);
-            if(it->second & WRITE_EVENT)
-                //FD_SET(sd, &writefds);        //No write event needed!
-            if(it->second & EXCEPTION_EVENT)
-                FD_SET(sd, &exceptionfds);
-        }
-        //highest file descriptor number, need it for the select function 
-        if(sd > max_sd)  
-            max_sd = sd;  
-    }
-
-    //wait for an activity on one of the sockets , timeout is NULL , 
-    //so wait indefinitely
-    struct timeval tv_copy = tv;    //select modifies tv
-    int retval = select(max_sd+1, &readfds, &writefds, &exceptionfds, NULL/*&tv_copy*/);
-    
-    if( retval < 0 && errno != EINTR )
-        cout << "select error" << endl;
-    else
-    {
-        auto it = m_eh.begin();
-        while( it != m_eh.end() )
-        {   
-            auto next_it = it;  // Caches the iterator because a call to remove_handler by an event_handler
-            next_it++;          // could invalidate it.
-
-            Event_Handler* eh = it->first;
-
-            if( retval == 0 )
-            {
-                cout << "Select: TIMEOUT_EVENT" << endl;
-                eh->handle_event(Event_Type::TIMEOUT_EVENT);
-            }
-            else if( retval < 0  && errno == EINTR)
-            {
-                cout << "Select SIGNAL_EVENT" << endl;
-                eh->handle_event(Event_Type::SIGNAL_EVENT);
-            }
-            else
-            {
-                int socket = eh->get_handle();
-
-                if( FD_ISSET(socket, &readfds) )
-                {
-                    if( it->second & Event_Type::READ_EVENT )
-                    {
-                        int n = 0;
-                        ioctl(socket, FIONREAD, &n);
-                        if( n )
-                        {
-                            cout << "Select: (socket = " << socket << ") READ_EVENT" << endl;
-                            eh->handle_event(Event_Type::READ_EVENT);
-                        }
-                        else
-                        {
-                            cout << "Select: (socket = " << socket << ") CLOSE_EVENT" << endl;
-                            eh->handle_event(Event_Type::CLOSE_EVENT);
-                        }
-                    }
-                    else if( it->second & Event_Type::ACCEPT_EVENT)
-                    {
-                        cout << "Select: (socket = " << socket << ") ACCEPT_EVENT" << endl;
-                        eh->handle_event(Event_Type::ACCEPT_EVENT);
-                    }
-                }
-                else if( FD_ISSET(socket, &writefds) && (it->second & Event_Type::WRITE_EVENT) )
-                {
-                    cout << "Select: (socket = " << socket << ") WRITE_EVENT" << endl;
-                    eh->handle_event(Event_Type::WRITE_EVENT);
-                }
-                else if( FD_ISSET(socket, &exceptionfds) && (it->second & Event_Type::EXCEPTION_EVENT)  )
-                {
-                    cout << "Select: (socket = " << socket << ") EXCEPTION_EVENT" << endl;
-                    eh->handle_event(Event_Type::EXCEPTION_EVENT);
-                }
-            }
-        it = next_it;
-        }
-    }
+    struct epoll_event events[MAX_EVENTS];
+    int nfds = epoll_wait(m_epoll_fd, events, MAX_EVENTS, ms_timeout);
+    if( nfds > 0 )
+        for (int n = 0; n < nfds; ++n)
+            static_cast<Event_Handler*>(events[n].data.ptr)->handle_event(events[n]);
+    else if( nfds < 0 && errno != EINTR )  //error (neither a timeout nor a signal)
+        exit(EXIT_FAILURE);
 }
+
 
 Initiation_Dispatcher& Initiation_Dispatcher::GetInstance()
 {
