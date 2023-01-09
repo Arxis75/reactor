@@ -1,18 +1,10 @@
-#include "Initiation_Dispatcher.h"
+#include "InitiationDispatcher.h"
+#include "SocketHandler.h"
 
 #include <sys/epoll.h>
-#include <fcntl.h>      //O_CLOEXEC
-#include <sys/ioctl.h>  //ioctl
-#include <errno.h>      //errno
-#include <sys/time.h>   //struct timeval
-#include <stddef.h>     //NULL
+#include <fcntl.h>          //O_CLOEXEC
 #include <assert.h>
-#include <map>
-#include <iostream>     //cout
-
-using std::cout;
-using std::endl;
-using std::map;
+#include <iostream>         //cout, EXIT_FAILURE, NULL
 
 #define MAX_EVENTS 10   //max simultaneous events for a single epoll_wait
 
@@ -27,7 +19,7 @@ Initiation_Dispatcher::Initiation_Dispatcher()
 // etc.).
 void Initiation_Dispatcher::register_handler(struct epoll_event ev)
 {
-    assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, static_cast<Event_Handler*>(ev.data.ptr)->get_handle(), &ev) );
+    assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, static_cast<SocketHandler*>(ev.data.ptr)->getSocket(), &ev) );
 }
 
 // Remove an Event_Handler of a particular
@@ -44,11 +36,10 @@ void Initiation_Dispatcher::handle_events(const int ms_timeout)
     int nfds = epoll_wait(m_epoll_fd, events, MAX_EVENTS, ms_timeout);
     if( nfds > 0 )
         for (int n = 0; n < nfds; ++n)
-            static_cast<Event_Handler*>(events[n].data.ptr)->handle_event(events[n]);
+            static_cast<SocketHandler*>(events[n].data.ptr)->handleEvent(events[n]);
     else if( nfds < 0 && errno != EINTR )  //error (neither a timeout nor a signal)
         exit(EXIT_FAILURE);
 }
-
 
 Initiation_Dispatcher& Initiation_Dispatcher::GetInstance()
 {

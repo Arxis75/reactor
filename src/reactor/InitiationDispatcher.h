@@ -1,26 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-#include <map>
-
-using std::map;
-
-class Event_Handler
-// = TITLE
-// Abstract base class that serves as the
-// target of the Initiation_Dispatcher.
-{
-    public:
-        // Hook methods that are called back by
-        // the Initiation_Dispatcher to handle
-        // particular types of events.
-        virtual int handle_event(const struct epoll_event event) = 0;
-
-        // Hook method that returns the underlying
-        // I/O Handle.
-        virtual int get_handle(void) const = 0;
-};
-
 // Demultiplex and dispatch Event_Handlers
 // in response to client requests.
 class Initiation_Dispatcher
@@ -48,6 +27,5 @@ class Initiation_Dispatcher
     
     private:
         static Initiation_Dispatcher *m_sInstancePtr;
-        map<Event_Handler*, uint16_t> m_eh;
         int m_epoll_fd;
 };
