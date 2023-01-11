@@ -12,7 +12,7 @@ using std::cout;
 using std::endl;
 
 #define CONNECTION_BACKLOG_SIZE 10
-#define FD_READ_BUFFER_SIZE 1024
+#define READ_BUFFER_SIZE 1024
 
 SocketHandler::SocketHandler(const uint16_t port, const int protocol)
     : m_protocol(protocol)
@@ -99,7 +99,7 @@ int SocketHandler::handleEvent(const struct epoll_event event)
     {
         Initiation_Dispatcher::GetInstance().remove_handler(m_socket);
         
-        cout << "Socket: " << m_socket << " is closing." << endl;
+        cout << "Socket " << m_socket << " is closing." << endl;
         
         close(m_socket);
         if(m_delete_on_close)
@@ -119,7 +119,7 @@ int SocketHandler::handleEvent(const struct epoll_event event)
             }
             else
             {
-                char buffer[FD_READ_BUFFER_SIZE];
+                char buffer[READ_BUFFER_SIZE];
                 memset(buffer, 0, sizeof(buffer));
 
                 while( true )

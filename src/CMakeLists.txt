@@ -8,5 +8,5 @@ add_executable(reactor_srv ${SOURCES})
 
 add_subdirectory(reactor)
 
-#target_link_libraries(cryptarxis PUBLIC OpenSSL::Crypto ethash::ethash givaro)
+target_link_libraries(reactor_srv PUBLIC lib_reactor)
 #target_sources(reactor_tests PUBLIC ${COMMON})
