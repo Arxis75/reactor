@@ -7,39 +7,62 @@
 #include <string.h>         //memset
 #include <assert.h>
 #include <iostream>         //cout, EXIT_FAILURE, NULL
+//#include <algorithm>
 
 using std::cout;
+using std::hex;
+using std::dec;
 using std::endl;
+using std::min;
 
-#define CONNECTION_BACKLOG_SIZE 10
-#define READ_BUFFER_SIZE 1024
+//-----------------------------------------------------------------------------------------------------------
 
-SocketHandler::SocketHandler(const uint16_t port, const int protocol)
-    : m_protocol(protocol)
-    , m_socket(0)
-    , m_delete_on_close(false)
+SocketHandlerMessage::SocketHandlerMessage(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+    : m_socket_handler(socket_handler)
+    , m_peer_address(peer_address)
+{ }
+
+const std::shared_ptr<const SocketHandler> SocketHandlerMessage::getSocketHandler() const
+{ 
+    if( const std::shared_ptr<const SocketHandler> spt_handler = m_socket_handler.lock() )
+        return spt_handler;
+    else
+        return shared_ptr<const SocketHandler>(nullptr);
+}
+
+//-----------------------------------------------------------------------------------------------------------
+
+SessionManager::SessionManager(const uint16_t master_port, const int master_protocol)
+    : m_master_port(master_port)
+    , m_master_protocol(master_protocol)
+{ }
+
+void SessionManager::start()
+{          
+    std::shared_ptr<SocketHandler> master_socket_handler = std::make_shared<SocketHandler>(shared_from_this(), m_master_port, m_master_protocol);
+    master_socket_handler->start();
+}
+
+//-----------------------------------------------------------------------------------------------------------
+
+SocketHandler::SocketHandler(const shared_ptr<const SessionManager> mgr, const uint16_t port, const int protocol)
+    : m_socket(0)
+    , m_protocol(protocol)
+    , m_is_listening_socket(protocol == IPPROTO_TCP ? true : false)
+    , m_session_manager(mgr)
 {
     bindSocket(port);
 
-    if(m_protocol == IPPROTO_TCP)
+    if(protocol == IPPROTO_TCP)
         assert( !listen(m_socket, CONNECTION_BACKLOG_SIZE) );
-
-    cacheLocalAddress();
-    registerHandler();
 }
 
-SocketHandler::SocketHandler(const int socket)
-    : m_protocol(IPPROTO_TCP)
-    , m_socket(socket)
-    , m_delete_on_close(true)
-{
-    cacheLocalAddress();
-    cacheRemoteAddress();
-    registerHandler();
-
-    cout << "@" << inet_ntoa(m_peer_address.sin_addr) << ":" << ntohs(m_peer_address.sin_port)
-         << " (socket = " << m_socket << ") connected." << endl;
-}
+SocketHandler::SocketHandler(const shared_ptr<const SessionManager> mgr, const int socket)
+    : m_socket(socket)
+    , m_protocol(IPPROTO_TCP)
+    , m_is_listening_socket(false)
+    , m_session_manager(mgr)
+{ }
 
 int SocketHandler::bindSocket(const uint16_t port)
 {
@@ -59,15 +82,20 @@ int SocketHandler::bindSocket(const uint16_t port)
     int optval = 1;
     assert( !setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) );
     
-    assert( !bind(m_socket, (struct sockaddr *)&address, sizeof(address)) );
+    if( bind(m_socket, (struct sockaddr *)&address, sizeof(address)) && (errno==EADDRINUSE) )
+    {
+        cout << "Port " << port  << " is already in use!" << endl;
+        exit(0);
+    }   
 
     return 0;
 }
 
-int SocketHandler::acceptConnection()
+int SocketHandler::acceptConnection() const
 {
-    socklen_t len = sizeof(m_peer_address);
-    int new_socket = accept(m_socket, (struct sockaddr *)&m_peer_address, &len);
+    struct sockaddr_in peer_address;
+    socklen_t len = sizeof(peer_address);
+    int new_socket = accept(m_socket, (struct sockaddr *)&peer_address, &len);
 
     // the errno conditions handle the exceptional case where
     // the fd was announced ready and the socket operation would hang
@@ -92,86 +120,163 @@ int SocketHandler::acceptConnection()
     return 0;
 }
 
-int SocketHandler::handleEvent(const struct epoll_event event)
+int SocketHandler::handleEvent(const struct epoll_event& event)
 {
     uint32_t ev = event.events;
     if( (ev & EPOLLRDHUP) || (ev & EPOLLHUP) || (ev & EPOLLERR) )
     {
-        Initiation_Dispatcher::GetInstance().remove_handler(m_socket);
-        
         cout << "Socket " << m_socket << " is closing." << endl;
-        
+
+        Initiation_Dispatcher::GetInstance().removeHandler(m_socket);
         close(m_socket);
-        if(m_delete_on_close)
-            delete this;
     }
     else
     {
         if(ev & EPOLLIN)
         {
-            if( m_protocol == IPPROTO_TCP && !m_delete_on_close )   //master TCP socket
+            if( m_is_listening_socket )
             {
                 if( int m_connected_socket = acceptConnection() )
                 {
-                    // Create a new Logging Handler.
-                    SocketHandler *handler = new SocketHandler(m_connected_socket);
+                    // Create a connected socket Handler
+                    shared_ptr<SocketHandler> handler = make_shared<SocketHandler>(m_session_manager, m_connected_socket);
+                    handler->start();
+
+                    struct sockaddr_in peer_address;
+                    socklen_t len = sizeof(peer_address);
+                    assert( !getpeername (handler->getSocket(), (struct sockaddr *)&peer_address , &len ) );
+                    cout << "@" << inet_ntoa(peer_address.sin_addr) << ":" << ntohs(peer_address.sin_port)
+                         << " TCP socket = " << handler->getSocket() << " connected." << endl;
                 }
             }
             else
             {
                 char buffer[READ_BUFFER_SIZE];
-                memset(buffer, 0, sizeof(buffer));
+                struct sockaddr_in peer_address;
+                socklen_t len = sizeof(peer_address);
+                int nbytes_read;
 
-                while( true )
+                memset(buffer, 0, sizeof(buffer));  //Is it usefull?
+
+                if( m_protocol == IPPROTO_UDP )
+                {                   
+                    while( true )
+                    {
+                        nbytes_read = recvfrom(m_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&peer_address, &len );
+
+                        if( nbytes_read == 0 || (nbytes_read == -1 && (errno==EAGAIN)) )
+                            break;
+                        else if( nbytes_read == -1 )
+                            cout << "ERROR: SOCKET " << m_socket << " READ ERROR!" << endl;
+
+                        if( nbytes_read > 0)
+                        {   
+                            //we have a new udp datagram
+                            auto msg = make_shared<SocketHandlerMessage>(SocketHandlerMessage(shared_from_this(), peer_address));
+                            for(int i=0;i<nbytes_read;i++)
+                                msg->data().push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+
+                            //enqueue the datagram
+                            // We make the assumption here that the read buffer size is big
+                            // enough to contain the largest message
+                            const_pointer_cast<SessionManager>(m_session_manager)->onNewMessage(msg);
+                        }
+                    }
+                }
+                else
                 {
-                    int nbytes_read;
-                    if( m_protocol == IPPROTO_UDP )
-                    {
-                        //stores remote address infos
-                        socklen_t len = sizeof(m_peer_address);
-                        nbytes_read = recvfrom(m_socket, buffer, 1024, 0, (struct sockaddr *)&m_peer_address, &len );
-                    }
-                    else
-                        nbytes_read = recv(m_socket, buffer, 1024, 0);
+                    //Beginning of a new tcp stream
+                    assert( !getpeername (m_socket , (struct sockaddr *)&peer_address , &len ));    //Is it usefull?
+                    auto msg = make_shared<SocketHandlerMessage>(SocketHandlerMessage(shared_from_this(), peer_address));
 
-                    if( nbytes_read == -1 && (errno==EAGAIN) )
-                        break;
-                    else
+                    while( true )
                     {
-                        cout << "@" << inet_ntoa(m_peer_address.sin_addr) << ":" << ntohs(m_peer_address.sin_port)
-                            << " => @" << inet_ntoa(m_local_address.sin_addr) << ":" << ntohs(m_local_address.sin_port)
-                            << " (socket = " << m_socket << "), " << nbytes_read << " Bytes received" << endl;
-                        cout << buffer << endl;
-                        memset(buffer, 0, sizeof(buffer));
+                        nbytes_read = recv(m_socket, buffer, sizeof(buffer), 0);
+
+                        if( nbytes_read > 0)
+                        {   
+                            //pushes more packets of the same msg
+                            for(int i=0;i<nbytes_read;i++)
+                                msg->data().push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                        }
+                        else if( nbytes_read == 0 || (nbytes_read == -1 && (errno==EAGAIN)) )
+                            break;
+                        else if( nbytes_read == -1 )
+                            cout << "ERROR: SOCKET " << m_socket << " READ ERROR!" << endl;
                     }
+
+                    //enqueue the message
+                    const_pointer_cast<SessionManager>(m_session_manager)->onNewMessage(msg);
                 }
             }
         }
 
         if(ev & EPOLLOUT)
-            cout << "@" << inet_ntoa(m_local_address.sin_addr) << ":" << ntohs(m_local_address.sin_port)
-                 << " (socket = " << m_socket << ") ready for sending" << endl;
-   }
+        {
+            char buffer[WRITE_BUFFER_SIZE];
+            
+            memset(buffer, 0, sizeof(buffer));
+
+            if( !m_egress.size())
+            {
+                cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket 
+                     << " ready for sending" << endl;
+            }
+            else
+            {
+                while( m_egress.size() )
+                {
+                    shared_ptr<const SocketHandlerMessage> msg = m_egress.dequeue();
+                    
+                    cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
+                         << " => @" << inet_ntoa(msg->getPeerAddress().sin_addr) << ":" << ntohs(msg->getPeerAddress().sin_port)
+                         << ", " << msg->data().size() << " Bytes requested to be sent" << endl;
+
+                    size_t nbytes_sent = 0, already_sent = 0;
+                    if( m_protocol == IPPROTO_UDP )
+                    {
+                        // Asserts here that the UDP buffer is large enough to send the whole datagramm
+                        // Big datagrams are not recommended because there is no way to recover
+                        // lost packets from the datagram fragmentation at IP level by the MTU.
+                        size_t send_size =  msg->data().size();
+                        assert(send_size <= sizeof(buffer));
+                        
+                        memcpy(buffer, &msg->data()[0], send_size);
+                        
+                        struct sockaddr_in peer_address = msg->getPeerAddress();
+                        socklen_t len = sizeof(peer_address);
+                        nbytes_sent = sendto(m_socket, buffer, send_size, 0, (const struct sockaddr *)&peer_address, len );
+                        already_sent = nbytes_sent;
+                    }
+                    else
+                    {
+                        while( already_sent < msg->data().size() )
+                        {
+                            size_t send_size =  min(msg->data().size() - already_sent, sizeof(buffer));
+                            memcpy(buffer, &msg->data()[already_sent], send_size);
+
+                            nbytes_sent = send(m_socket, buffer, send_size, 0);
+
+                            if( nbytes_sent > 0 )    
+                                already_sent += nbytes_sent;
+                            else if( nbytes_sent == 0 || (nbytes_sent == -1 && (errno==EAGAIN)) )
+                                break;
+                            else if( nbytes_sent == -1 )
+                                cout << "ERROR: SOCKET " << m_socket << " READ ERROR!" << endl;
+                        }
+                    }
+
+                    cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
+                         << " => @" << inet_ntoa(msg->getPeerAddress().sin_addr) << ":" << ntohs(msg->getPeerAddress().sin_port)
+                         << ", " << already_sent << " Bytes sent" << endl;
+                }
+            }
+        }
+    }
     return 0;
 }
 
-int SocketHandler::cacheLocalAddress()
-{
-    //stores local address infos
-    socklen_t len = sizeof(m_local_address);
-    assert( !getsockname(m_socket, (struct sockaddr *)&m_local_address, &len) );
-    return 0;
-}
-
-int SocketHandler::cacheRemoteAddress()
-{
-    //stores remote address infos
-    socklen_t len = sizeof(m_peer_address);
-    assert( !getpeername (m_socket , (struct sockaddr *)&m_peer_address , &len ) );
-    return 0;
-}
-
-void SocketHandler::registerHandler()
+void SocketHandler::start()
 {
     // Register with the dispatcher for edge-triggered events.
     struct epoll_event ev;
@@ -179,8 +284,8 @@ void SocketHandler::registerHandler()
     ev.events = EPOLLIN|EPOLLET;
     if(m_protocol == IPPROTO_UDP)
         ev.events |= EPOLLOUT;              //for UDP master socket
-    else if(m_delete_on_close)
+    if(!m_is_listening_socket)
         ev.events |= EPOLLOUT|EPOLLRDHUP;   //for TCP connected socket
-    ev.data.ptr = (void*)this;
-    Initiation_Dispatcher::GetInstance().register_handler(ev);
+    ev.data.fd = m_socket;
+    Initiation_Dispatcher::GetInstance().registerHandler(shared_from_this(), ev);
 }
