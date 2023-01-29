@@ -129,8 +129,9 @@ class SessionManager: public std::enable_shared_from_this<SessionManager>
         void start();
         virtual void onNewMessage(const shared_ptr<const SocketHandlerMessage> msg_in) = 0;
 
+    protected:
+        SafeQueue<shared_ptr<const SocketHandlerMessage>> m_ingress;
     private:
         int m_master_port;
         int m_master_protocol;
-        SafeQueue<shared_ptr<const SocketHandlerMessage>> m_ingress;
 };
