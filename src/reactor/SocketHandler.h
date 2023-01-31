@@ -126,6 +126,6 @@ class SessionManager: public std::enable_shared_from_this<SessionManager>
     public:
         SessionManager();
 
-        void start(const uint16_t master_port, const int master_protocol);
+        void start(const uint16_t master_port, const int master_protocol) const;
         virtual void onNewMessage(const shared_ptr<const SocketHandlerMessage> msg_in) = 0;
 };

@@ -35,7 +35,7 @@ const std::shared_ptr<const SocketHandler> SocketHandlerMessage::getSocketHandle
 SessionManager::SessionManager()
 { }
 
-void SessionManager::start(const uint16_t master_port, const int master_protocol)
+void SessionManager::start(const uint16_t master_port, const int master_protocol) const
 {          
     std::shared_ptr<SocketHandler> master_socket_handler = std::make_shared<SocketHandler>(shared_from_this(), master_port, master_protocol);
     master_socket_handler->start();
@@ -76,10 +76,13 @@ int SocketHandler::bindSocket(const uint16_t port)
     // Set to non-blocking
     assert( !fcntl(m_socket, F_SETFL, O_NONBLOCK) );
 
-    // Or use SO_LINGER with timeout 0 ?
-    int optval = 1;
-    assert( !setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) );
-    
+    if( m_protocol == IPPROTO_TCP )
+    {
+        // Or use SO_LINGER with timeout 0 ?
+        int optval = 1;
+        assert( !setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) );
+    }
+
     if( bind(m_socket, (struct sockaddr *)&address, sizeof(address)) && (errno==EADDRINUSE) )
     {
         cout << "Port " << port  << " is already in use!" << endl;
