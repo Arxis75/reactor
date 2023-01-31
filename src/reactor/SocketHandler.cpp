@@ -175,7 +175,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             //we have a new udp datagram
                             auto msg = make_shared<SocketHandlerMessage>(SocketHandlerMessage(shared_from_this(), peer_address));
                             for(int i=0;i<nbytes_read;i++)
-                                msg->data().push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                                msg->payload_vector().push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
 
                             //enqueue the datagram
                             // We make the assumption here that the read buffer size is big
@@ -198,7 +198,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         {   
                             //pushes more packets of the same msg
                             for(int i=0;i<nbytes_read;i++)
-                                msg->data().push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                                msg->payload_vector().push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
                         }
                         else if( nbytes_read == 0 || (nbytes_read == -1 && (errno==EAGAIN)) )
                             break;
@@ -231,7 +231,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     
                     cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
                          << " => @" << inet_ntoa(msg->getPeerAddress().sin_addr) << ":" << ntohs(msg->getPeerAddress().sin_port)
-                         << ", " << msg->data().size() << " Bytes requested to be sent" << endl;
+                         << ", " << msg->payload_vector().size() << " Bytes requested to be sent" << endl;
 
                     size_t nbytes_sent = 0, already_sent = 0;
                     if( m_protocol == IPPROTO_UDP )
@@ -239,10 +239,10 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         // Asserts here that the UDP buffer is large enough to send the whole datagramm
                         // Big datagrams are not recommended because there is no way to recover
                         // lost packets from the datagram fragmentation at IP level by the MTU.
-                        size_t send_size =  msg->data().size();
+                        size_t send_size =  msg->payload_vector().size();
                         assert(send_size <= sizeof(buffer));
                         
-                        memcpy(buffer, &msg->data()[0], send_size);
+                        memcpy(buffer, &msg->payload_vector()[0], send_size);
                         
                         struct sockaddr_in peer_address = msg->getPeerAddress();
                         socklen_t len = sizeof(peer_address);
@@ -251,10 +251,10 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     }
                     else
                     {
-                        while( already_sent < msg->data().size() )
+                        while( already_sent < msg->payload_vector().size() )
                         {
-                            size_t send_size =  min(msg->data().size() - already_sent, sizeof(buffer));
-                            memcpy(buffer, &msg->data()[already_sent], send_size);
+                            size_t send_size =  min(msg->payload_vector().size() - already_sent, sizeof(buffer));
+                            memcpy(buffer, &msg->payload_vector()[already_sent], send_size);
 
                             nbytes_sent = send(m_socket, buffer, send_size, 0);
 

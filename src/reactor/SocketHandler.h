@@ -108,10 +108,10 @@ class SocketHandlerMessage
         const shared_ptr<const SocketHandler> getSocketHandler() const;
         const struct sockaddr_in& getPeerAddress() const { return m_peer_address; }
 
-        const vector<uint8_t> &data() const { return m_payload; }
+        const vector<uint8_t> &payload_vector() const { return m_payload; }
 
     protected:
-        vector<uint8_t> &data() { return m_payload; }
+        vector<uint8_t> &payload_vector() { return m_payload; }
 
     private:
         const std::weak_ptr<const SocketHandler> m_socket_handler;

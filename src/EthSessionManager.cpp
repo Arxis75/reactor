@@ -26,7 +26,7 @@ void EthSessionManager::onNewMessage(const shared_ptr<const SocketHandlerMessage
         if( auto sh_in = msg_in->getSocketHandler() )
             cout << dec << "@ " << (sh_in->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << sh_in->getSocket()
                     << " => @" << inet_ntoa(msg_in->getPeerAddress().sin_addr) << ":" << ntohs(msg_in->getPeerAddress().sin_port)
-                    << ", " << msg_in->data().size() << " Bytes received" << endl;
+                    << ", " << msg_in->payload_vector().size() << " Bytes received" << endl;
     }
 
     //Worker job:
