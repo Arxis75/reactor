@@ -15,15 +15,14 @@ using std::dec;
 using std::endl;
 using std::min;
 
-EthSessionManager::EthSessionManager(const uint16_t master_port, const int master_protocol)
-    : SessionManager(master_port, master_protocol)
+EthSessionManager::EthSessionManager()
+    : SessionManager()
 { }
 
 void EthSessionManager::onNewMessage(const shared_ptr<const SocketHandlerMessage> msg_in) 
 {
     if(msg_in)
     {
-        m_ingress.enqueue(msg_in);
         if( auto sh_in = msg_in->getSocketHandler() )
             cout << dec << "@ " << (sh_in->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << sh_in->getSocket()
                     << " => @" << inet_ntoa(msg_in->getPeerAddress().sin_addr) << ":" << ntohs(msg_in->getPeerAddress().sin_port)
@@ -31,7 +30,7 @@ void EthSessionManager::onNewMessage(const shared_ptr<const SocketHandlerMessage
     }
 
     //Worker job:
-    auto msg_out = m_ingress.dequeue(); //echo server here for example
+    auto msg_out = msg_in; //echo server here for example
     if(msg_out)
         if( auto sh_out = msg_out->getSocketHandler() )
             if( auto sm_out = sh_out->getSessionManager() )

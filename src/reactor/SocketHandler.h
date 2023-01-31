@@ -124,14 +124,8 @@ class SocketHandlerMessage
 class SessionManager: public std::enable_shared_from_this<SessionManager>
 {
     public:
-        SessionManager(const uint16_t master_port, const int master_protocol);
+        SessionManager();
 
-        void start();
+        void start(const uint16_t master_port, const int master_protocol);
         virtual void onNewMessage(const shared_ptr<const SocketHandlerMessage> msg_in) = 0;
-
-    protected:
-        SafeQueue<shared_ptr<const SocketHandlerMessage>> m_ingress;
-    private:
-        int m_master_port;
-        int m_master_protocol;
 };

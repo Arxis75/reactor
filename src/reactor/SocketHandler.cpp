@@ -32,14 +32,12 @@ const std::shared_ptr<const SocketHandler> SocketHandlerMessage::getSocketHandle
 
 //-----------------------------------------------------------------------------------------------------------
 
-SessionManager::SessionManager(const uint16_t master_port, const int master_protocol)
-    : m_master_port(master_port)
-    , m_master_protocol(master_protocol)
+SessionManager::SessionManager()
 { }
 
-void SessionManager::start()
+void SessionManager::start(const uint16_t master_port, const int master_protocol)
 {          
-    std::shared_ptr<SocketHandler> master_socket_handler = std::make_shared<SocketHandler>(shared_from_this(), m_master_port, m_master_protocol);
+    std::shared_ptr<SocketHandler> master_socket_handler = std::make_shared<SocketHandler>(shared_from_this(), master_port, master_protocol);
     master_socket_handler->start();
 }
 
