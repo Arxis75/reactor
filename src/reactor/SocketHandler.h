@@ -7,6 +7,7 @@
 #include <vector>
 #include <condition_variable>
 
+using std::string;
 using std::vector;
 
 using std::lock_guard;
@@ -16,13 +17,6 @@ using std::mutex;
 using std::make_shared;
 using std::shared_ptr;
 using std::const_pointer_cast;
-
-#define MAX_DISCV5_UDP_PACKET_SIZE 1280     // INPUT PARAMETERS 
-#define MAX_ETH_TCP_PACKET_SIZE 10485100    // INPUT PARAMETERS 
-
-#define CONNECTION_BACKLOG_SIZE 10
-#define READ_BUFFER_SIZE 4096
-#define WRITE_BUFFER_SIZE 4096
 
 // A threadsafe-queue.
 template <class T>
@@ -39,7 +33,7 @@ class SafeQueue
         {}
 
         // Add an element to the queue.
-        void enqueue(T t)
+        void enqueue(const T t)
         {
             lock_guard<mutex> lock(m);
             q.push(t);
@@ -48,7 +42,7 @@ class SafeQueue
 
         // Get the "front"-element.
         // If the queue is empty, wait till a element is avaiable.
-        T dequeue(void)
+        const T dequeue(void)
         {
             unique_lock<mutex> lock(m);
             while(q.empty())
@@ -76,39 +70,63 @@ class SocketMessage;
 class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 {
     public:
-        SocketHandler(const uint16_t port, const int protocol);
-        SocketHandler(const int socket);
+        // Constructor of a Master socket (TCP or UDP)
+        SocketHandler(const string &ip, const uint16_t port, const int protocol,
+                      const int read_buffer_size = 4096, const int write_buffer_size = 4096,
+                      const int tcp_connection_backlog_size = 10);
+        // Constructor of a TCP connected socket
+        SocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
 
+        // Starts receiving epoll socket events from the kernel
         void start();
+        // Stops receiving epoll socket events from the kernel
+        // and clears the session(s)
         void stop();
 
+        // Handles in/out epoll socket events from the kernel,
+        // creates session and:
+        // - dispatch ingress msgs to the session(s)
+        // - send egress msgs to peer(s)
         int handleEvent(const struct epoll_event &event);
-        void sendMsg(const shared_ptr<const SocketMessage> msg)
-            { return m_egress.enqueue(const_pointer_cast<SocketMessage>(msg)); } //mandatory cast for the queue
+
+        // Enqueue egress msg to be sent to peer
+        void sendMsg(const shared_ptr<const SocketMessage> msg) { m_egress.enqueue(msg); }
 
         int getSocket() const { return m_socket; };
+        const string &getHostIP() const { return m_host_ip; }
+        const uint16_t getHostPort() const { return m_host_port; }
         int getProtocol() const { return m_protocol; };
+        int getReadBufferSize() const { return m_read_buffer_size; };        
+        int getWriteBufferSize() const { return m_write_buffer_size; };
+        int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
 
         // Registers a session handler for a particular peer
-        const shared_ptr<SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
+        const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         // Gets the session handler for a particular peer
-        const shared_ptr<SessionHandler> getSessionHandler(const struct sockaddr_in &addr);
+        const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr);
         // Remove an Event_Handler of a particular peer
         void removeSessionHandler(const struct sockaddr_in &peer);
 
     protected:
-        int bindSocket(const uint16_t port);
+        int bindSocket(const string &ip, const uint16_t port);
         int acceptConnection() const;
 
-        virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket) const = 0;
+        virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
 
     private:
         int m_socket;
-        int m_protocol;
-        bool m_is_listening_socket;
-        map<uint64_t, shared_ptr<SessionHandler>> m_session_handler_list;   // UDP = list, TCP = 1 element
+        const string m_host_ip;
+        const uint16_t m_host_port;
+        const int m_protocol;
+        const int m_read_buffer_size;
+        const int m_write_buffer_size;
+        const int m_tcp_connection_backlog_size;
+        const bool m_is_listening_socket;
+        // the SocketHandler is the sole owner of the SessionHandlers
+        map<uint64_t, const shared_ptr<const SessionHandler>> m_session_handler_list;   // UDP = list, TCP = 1 element
+        // the SocketHandler is the sole owner of the egress msgs
         SafeQueue<shared_ptr<const SocketMessage>> m_egress;   // egress list stored at connected socket(tp) or master socket(udp)
 };
 

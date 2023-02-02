@@ -32,11 +32,13 @@ class ConcreteSessionHandler: public SessionHandler
 class ConcreteSocketHandler: public SocketHandler
 {
     public:
-        ConcreteSocketHandler(const uint16_t port, const int protocol);
-        ConcreteSocketHandler(const int socket);
+        ConcreteSocketHandler(const string &ip, const uint16_t port, const int protocol,
+                              const int read_buffer_size = 4096, const int write_buffer_size = 4096,
+                              const int tcp_connection_backlog_size = 10);
+        ConcreteSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
 
     protected:
-        virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket) const;
+        virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const;
 };

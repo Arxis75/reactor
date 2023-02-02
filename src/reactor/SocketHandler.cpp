@@ -19,6 +19,7 @@ using std::min;
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : m_session_handler(session_handler)
+    
 { }
 
 const shared_ptr<const SessionHandler> SocketMessage::getSessionHandler() const
@@ -51,29 +52,41 @@ const struct sockaddr_in &SessionHandler::getPeerAddress() const
 
 //-----------------------------------------------------------------------------------------------------------
 
-SocketHandler::SocketHandler(const uint16_t port, const int protocol)
+SocketHandler::SocketHandler(const string& ip, const uint16_t port, const int protocol,
+                             const int read_buffer_size, const int write_buffer_size,
+                             const int tcp_connection_backlog_size)
     : m_socket(0)
+    , m_host_ip(ip)
+    , m_host_port(port)
     , m_protocol(protocol)
+    , m_read_buffer_size(read_buffer_size)
+    , m_write_buffer_size(write_buffer_size)
+    , m_tcp_connection_backlog_size(tcp_connection_backlog_size)
     , m_is_listening_socket(protocol == IPPROTO_TCP ? true : false)
 {
-    bindSocket(port);
+    bindSocket(ip, port);
 
     if(protocol == IPPROTO_TCP)
-        assert( !listen(m_socket, CONNECTION_BACKLOG_SIZE) );
+        assert( !listen(m_socket, m_tcp_connection_backlog_size) );
 }
 
-SocketHandler::SocketHandler(const int socket)
+SocketHandler::SocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
     : m_socket(socket)
-    , m_protocol(IPPROTO_TCP)
+    , m_host_ip(master_handler->m_host_ip)
+    , m_host_port(master_handler->m_host_port)
+    , m_protocol(master_handler->m_protocol)
+    , m_read_buffer_size(master_handler->m_read_buffer_size)
+    , m_write_buffer_size(master_handler->m_write_buffer_size)
+    , m_tcp_connection_backlog_size(master_handler->m_tcp_connection_backlog_size)
     , m_is_listening_socket(false)
 { }
 
-int SocketHandler::bindSocket(const uint16_t port)
+int SocketHandler::bindSocket(const string &ip, const uint16_t port)
 {
     struct sockaddr_in address;
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;  
+    address.sin_addr.s_addr = inet_addr(ip.c_str());
     address.sin_port = htons(port); 
 
     //TODO: handle error codes
@@ -144,16 +157,16 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     socklen_t len = sizeof(peer_address);
                     assert( !getpeername (connected_socket, (struct sockaddr *)&peer_address , &len ) );
 
-                    auto socket_handler = makeSocketHandler(connected_socket);
+                    auto socket_handler = makeSocketHandler(connected_socket, shared_from_this());
                     socket_handler->start();
                 }
             }
             else
             {
-                char buffer[READ_BUFFER_SIZE];
+                char buffer[m_read_buffer_size];
                 struct sockaddr_in peer_address;
                 socklen_t len = sizeof(peer_address);
-                int nbytes_read;
+                ssize_t nbytes_read;
 
                 memset(buffer, 0, sizeof(buffer));  //Is it usefull?
 
@@ -162,11 +175,6 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     while( true )
                     {
                         nbytes_read = recvfrom(m_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&peer_address, &len );
-
-                        if( nbytes_read == 0 || (nbytes_read == -1 && (errno==EAGAIN)) )
-                            break;
-                        else if( nbytes_read == -1 )
-                            cout << "ERROR: SOCKET " << m_socket << " READ ERROR!" << endl;
 
                         if( nbytes_read > 0)
                         {   
@@ -178,8 +186,16 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
 
                             //enqueue the datagram
                             // We make the assumption here that the read buffer size is big
-                            // enough to contain the largest message
-                            session->onNewMessage(msg);
+                            // enough to contain the largest message, i.e. 1 datagram = 1 msg
+                            const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                        }
+                        else if( nbytes_read == 0 )
+                            break;
+                        else if( nbytes_read == -1)
+                        {
+                            if( errno !=EAGAIN )
+                                cout << "Error: socket " << m_socket << " read error..." << endl;
+                            break;
                         }
                     }
                 }
@@ -200,21 +216,25 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             for(int i=0;i<nbytes_read;i++)
                                 msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
                         }
-                        else if( nbytes_read == 0 || (nbytes_read == -1 && (errno==EAGAIN)) )
+                        else if( nbytes_read == 0 )
                             break;
                         else if( nbytes_read == -1 )
-                            cout << "ERROR: SOCKET " << m_socket << " READ ERROR!" << endl;
+                        {
+                            if( errno != EAGAIN )
+                                cout << "Error: socket " << m_socket << " read error..." << endl;
+                            break;
+                        }
                     }
 
                     //enqueue the message
-                    session->onNewMessage(msg);
+                    const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
                 }
             }
         }
 
         if(ev & EPOLLOUT)
         {
-            char buffer[WRITE_BUFFER_SIZE];
+            char buffer[m_write_buffer_size];
             
             memset(buffer, 0, sizeof(buffer));
 
@@ -236,7 +256,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             << ":" << ntohs(session->getPeerAddress().sin_port)
                             << ", " << msg->size() << " Bytes requested to be sent" << endl;
 
-                        size_t nbytes_sent = 0, already_sent = 0;
+                        ssize_t nbytes_sent = 0, already_sent = 0;
                         if( m_protocol == IPPROTO_UDP )
                         {
                             // Asserts here that the UDP buffer is large enough to send the whole datagramm
@@ -249,7 +269,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             
                             struct sockaddr_in peer_address = session->getPeerAddress();
                             socklen_t len = sizeof(peer_address);
-                            nbytes_sent = sendto(m_socket, buffer, send_size, 0, (const struct sockaddr *)&peer_address, len );
+                            nbytes_sent = sendto(m_socket, buffer, send_size, MSG_NOSIGNAL, (const struct sockaddr *)&peer_address, len );
                             already_sent = nbytes_sent;
                         }
                         else
@@ -259,14 +279,17 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 size_t send_size =  min(msg->size() - already_sent, sizeof(buffer));
                                 memcpy(buffer, &(*msg)[already_sent], send_size);
 
-                                nbytes_sent = send(m_socket, buffer, send_size, 0);
+                                nbytes_sent = send(m_socket, buffer, send_size, MSG_NOSIGNAL);
 
                                 if( nbytes_sent > 0 )    
                                     already_sent += nbytes_sent;
-                                else if( nbytes_sent == 0 || (nbytes_sent == -1 && (errno==EAGAIN)) )
+                                else if( nbytes_sent == 0 )
                                     break;
-                                else if( nbytes_sent == -1 )
-                                    cout << "ERROR: SOCKET " << m_socket << " READ ERROR!" << endl;
+                                else if( nbytes_sent == -1 && (errno!=EAGAIN) )
+                                {
+                                    cout << "Error: socket " << m_socket << " write error..." << endl;
+                                    break;
+                                }
                             }
                         }
 
@@ -283,7 +306,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
 }
 
 // Gets the session handler for a particular peer
-const shared_ptr<SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr)
+const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr)
 {
     // If the session handler already exists,
     // registerSessionHandler(addr) will return it
@@ -291,7 +314,7 @@ const shared_ptr<SessionHandler> SocketHandler::getSessionHandler(const struct s
 }
 
 // Register an Session_Handler of a particular peer
-const shared_ptr<SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &addr)
+const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &addr)
 {
     uint64_t key = (addr.sin_addr.s_addr << 16) + addr.sin_port;
     auto it = m_session_handler_list.find(key);
@@ -330,7 +353,12 @@ void SocketHandler::stop()
 {
     cout << "Socket " << m_socket << " is closing." << endl;
 
-    m_session_handler_list.clear();
+    // The removal from Initiation_Dispatcher detroys:
+    // - the SessionHandler(s),
+    // - the egress message(s) in its queue,
+    // - the SocketHandler.
     Initiation_Dispatcher::GetInstance().removeSocketHandler(m_socket);
+
+    // Release the kernel socket
     close(m_socket);
 }

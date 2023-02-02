@@ -27,17 +27,19 @@ void ConcreteSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> 
 
 //----------------------------------------------------------------------------------------------------------------
 
-ConcreteSocketHandler::ConcreteSocketHandler(const uint16_t port, const int protocol)
-    : SocketHandler(port, protocol)
+ConcreteSocketHandler::ConcreteSocketHandler(const string &ip, const uint16_t port, const int protocol,
+                                             const int read_buffer_size, const int write_buffer_size,
+                                             const int tcp_connection_backlog_size)
+    : SocketHandler(ip, port, protocol, read_buffer_size, write_buffer_size, tcp_connection_backlog_size)
 { }
 
-ConcreteSocketHandler::ConcreteSocketHandler(const int socket)
-    : SocketHandler(socket)
+ConcreteSocketHandler::ConcreteSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
+    : SocketHandler(socket, master_handler)
 { }
 
-const shared_ptr<SocketHandler> ConcreteSocketHandler::makeSocketHandler(const int socket) const
+const shared_ptr<SocketHandler> ConcreteSocketHandler::makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const
 { 
-    return make_shared<ConcreteSocketHandler>(socket);
+    return make_shared<ConcreteSocketHandler>(socket, master_handler);
 }
 
 const shared_ptr<SessionHandler> ConcreteSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)

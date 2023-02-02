@@ -33,14 +33,11 @@ class Initiation_Dispatcher
         // Entry point into the reactive event loop.
         void handle_events(const int ms_timeout = -1);
 
-        const shared_ptr<SocketHandler> getHandler(int fd) const
-        {
-            auto it = m_handler_list.find(fd);
-            return ( it != m_handler_list.end() ? it->second : shared_ptr<SocketHandler>(nullptr) );
-        }
+        const shared_ptr<const SocketHandler> getHandler(int fd) const;
     
     private:
         static Initiation_Dispatcher *m_sInstancePtr;
         int m_epoll_fd;
-        map<int, shared_ptr<SocketHandler>> m_handler_list;
+        // the Initiation_Dispatcher is the sole owner of the socketHandlers
+        map<int, const shared_ptr<SocketHandler>> m_handler_list;
 };

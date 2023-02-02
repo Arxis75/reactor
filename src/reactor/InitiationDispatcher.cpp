@@ -43,6 +43,12 @@ void Initiation_Dispatcher::handle_events(const int ms_timeout)
         exit(EXIT_FAILURE);
 }
 
+const shared_ptr<const SocketHandler> Initiation_Dispatcher::getHandler(int fd) const
+{
+    auto it = m_handler_list.find(fd);
+    return ( it != m_handler_list.end() ? it->second : shared_ptr<const SocketHandler>(nullptr) );
+}
+
 Initiation_Dispatcher& Initiation_Dispatcher::GetInstance()
 {
     if (m_sInstancePtr == NULL)
