@@ -71,7 +71,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 {
     public:
         // Constructor of a Master socket (TCP or UDP)
-        SocketHandler(const string &ip, const uint16_t port, const int protocol,
+        SocketHandler(const uint16_t port, const int protocol,
                       const int read_buffer_size = 4096, const int write_buffer_size = 4096,
                       const int tcp_connection_backlog_size = 10);
         // Constructor of a TCP connected socket
@@ -93,8 +93,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         void sendMsg(const shared_ptr<const SocketMessage> msg) { m_egress.enqueue(msg); }
 
         int getSocket() const { return m_socket; };
-        const string &getHostIP() const { return m_host_ip; }
-        const uint16_t getHostPort() const { return m_host_port; }
+        const uint16_t getBindingPort() const { return m_binding_port; }
         int getProtocol() const { return m_protocol; };
         int getReadBufferSize() const { return m_read_buffer_size; };        
         int getWriteBufferSize() const { return m_write_buffer_size; };
@@ -108,7 +107,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         void removeSessionHandler(const struct sockaddr_in &peer);
 
     protected:
-        int bindSocket(const string &ip, const uint16_t port);
+        int bindSocket(const uint16_t port);
         int acceptConnection() const;
 
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
@@ -117,8 +116,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 
     private:
         int m_socket;
-        const string m_host_ip;
-        const uint16_t m_host_port;
+        const uint16_t m_binding_port;
         const int m_protocol;
         const int m_read_buffer_size;
         const int m_write_buffer_size;

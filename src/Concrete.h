@@ -32,7 +32,7 @@ class ConcreteSessionHandler: public SessionHandler
 class ConcreteSocketHandler: public SocketHandler
 {
     public:
-        ConcreteSocketHandler(const string &ip, const uint16_t port, const int protocol,
+        ConcreteSocketHandler(const uint16_t binding_port, const int protocol,
                               const int read_buffer_size = 4096, const int write_buffer_size = 4096,
                               const int tcp_connection_backlog_size = 10);
         ConcreteSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);

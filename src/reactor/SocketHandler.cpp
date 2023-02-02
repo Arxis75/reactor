@@ -52,19 +52,18 @@ const struct sockaddr_in &SessionHandler::getPeerAddress() const
 
 //-----------------------------------------------------------------------------------------------------------
 
-SocketHandler::SocketHandler(const string& ip, const uint16_t port, const int protocol,
+SocketHandler::SocketHandler(const uint16_t binding_port, const int protocol,
                              const int read_buffer_size, const int write_buffer_size,
                              const int tcp_connection_backlog_size)
     : m_socket(0)
-    , m_host_ip(ip)
-    , m_host_port(port)
+    , m_binding_port(binding_port)
     , m_protocol(protocol)
     , m_read_buffer_size(read_buffer_size)
     , m_write_buffer_size(write_buffer_size)
     , m_tcp_connection_backlog_size(tcp_connection_backlog_size)
     , m_is_listening_socket(protocol == IPPROTO_TCP ? true : false)
 {
-    bindSocket(ip, port);
+    bindSocket(m_binding_port);
 
     if(protocol == IPPROTO_TCP)
         assert( !listen(m_socket, m_tcp_connection_backlog_size) );
@@ -72,8 +71,7 @@ SocketHandler::SocketHandler(const string& ip, const uint16_t port, const int pr
 
 SocketHandler::SocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
     : m_socket(socket)
-    , m_host_ip(master_handler->m_host_ip)
-    , m_host_port(master_handler->m_host_port)
+    , m_binding_port(master_handler->m_binding_port)
     , m_protocol(master_handler->m_protocol)
     , m_read_buffer_size(master_handler->m_read_buffer_size)
     , m_write_buffer_size(master_handler->m_write_buffer_size)
@@ -81,12 +79,12 @@ SocketHandler::SocketHandler(const int socket, const shared_ptr<const SocketHand
     , m_is_listening_socket(false)
 { }
 
-int SocketHandler::bindSocket(const string &ip, const uint16_t port)
+int SocketHandler::bindSocket(const uint16_t port)
 {
     struct sockaddr_in address;
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr(ip.c_str());
+    address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port); 
 
     //TODO: handle error codes
