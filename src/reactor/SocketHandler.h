@@ -71,11 +71,13 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 {
     public:
         // Constructor of a Master socket (TCP or UDP)
-        SocketHandler(const uint16_t port, const int protocol,
+        SocketHandler(const uint16_t binding_port, const int protocol,
                       const int read_buffer_size = 4096, const int write_buffer_size = 4096,
                       const int tcp_connection_backlog_size = 10);
         // Constructor of a TCP connected socket
         SocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
+        //Destructor of a TCP connected socket: close the kernel socket
+        ~SocketHandler();
 
         // Starts receiving epoll socket events from the kernel
         void start();
@@ -138,10 +140,10 @@ class SocketMessage
         virtual uint64_t size() const = 0;
 
     protected:
-        //For ingress msg
-        virtual void push_back(uint8_t) = 0;
-        //For egress msg
-        virtual operator uint8_t*() const = 0;
+        //For building msg
+        virtual void push_back(const uint8_t) = 0;
+        //For reading msg
+        virtual operator const uint8_t*() const = 0;
 
     private:
         const std::weak_ptr<const SessionHandler> m_session_handler;

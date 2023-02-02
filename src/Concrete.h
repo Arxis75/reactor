@@ -13,9 +13,9 @@ class ConcreteSocketMessage: public SocketMessage
         virtual uint64_t size() const;
 
     protected:
-        virtual operator uint8_t*() const;
+        virtual operator const uint8_t*() const;
 
-        virtual void push_back(uint8_t value);
+        virtual void push_back(const uint8_t value);
     
     private:
         vector<uint8_t> vect;

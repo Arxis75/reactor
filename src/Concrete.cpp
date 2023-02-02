@@ -63,12 +63,12 @@ uint64_t ConcreteSocketMessage::size() const
     return vect.size();
 }
 
-ConcreteSocketMessage::operator uint8_t*() const
+ConcreteSocketMessage::operator const uint8_t*() const
 {
-    return const_cast<uint8_t*>(vect.data());
+    return vect.data();
 }
 
-void ConcreteSocketMessage::push_back(uint8_t value)
+void ConcreteSocketMessage::push_back(const uint8_t value)
 { 
     vect.push_back(value);
 }

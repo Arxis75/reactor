@@ -79,6 +79,12 @@ SocketHandler::SocketHandler(const int socket, const shared_ptr<const SocketHand
     , m_is_listening_socket(false)
 { }
 
+SocketHandler::~SocketHandler()
+{
+    // Release the kernel socket
+    close(m_socket);
+}
+
 int SocketHandler::bindSocket(const uint16_t port)
 {
     struct sockaddr_in address;
@@ -354,9 +360,6 @@ void SocketHandler::stop()
     // The removal from Initiation_Dispatcher detroys:
     // - the SessionHandler(s),
     // - the egress message(s) in its queue,
-    // - the SocketHandler.
+    // - the SocketHandler => close the kernel socket through the destructor
     Initiation_Dispatcher::GetInstance().removeSocketHandler(m_socket);
-
-    // Release the kernel socket
-    close(m_socket);
 }
