@@ -24,11 +24,11 @@ class Initiation_Dispatcher
         // Register an Event_Handler of a particular
         // Event_Type (e.g., READ_EVENT, ACCEPT_EVENT,
         // etc.).
-        void registerHandler(std::shared_ptr<SocketHandler> handler, struct epoll_event &ev);
+        void registerSocketHandler(std::shared_ptr<SocketHandler> handler, struct epoll_event &ev);
         
         // Remove an Event_Handler of a particular
         // Event_Type.
-        void removeHandler(int fd);
+        void removeSocketHandler(int fd);
         
         // Entry point into the reactive event loop.
         void handle_events(const int ms_timeout = -1);

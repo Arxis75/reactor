@@ -17,7 +17,7 @@ Initiation_Dispatcher::Initiation_Dispatcher()
 // Register an Event_Handler of a particular
 // Event_Type (e.g., READ_EVENT, ACCEPT_EVENT,
 // etc.).
-void Initiation_Dispatcher::registerHandler(std::shared_ptr<SocketHandler> handler, struct epoll_event &ev)
+void Initiation_Dispatcher::registerSocketHandler(std::shared_ptr<SocketHandler> handler, struct epoll_event &ev)
 {
     m_handler_list.insert(make_pair(ev.data.fd, handler));
     assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, ev.data.fd, &ev) );
@@ -25,7 +25,7 @@ void Initiation_Dispatcher::registerHandler(std::shared_ptr<SocketHandler> handl
 
 // Remove an Event_Handler of a particular
 // Event_Type.
-void Initiation_Dispatcher::removeHandler(int fd)
+void Initiation_Dispatcher::removeSocketHandler(int fd)
 {
     assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, fd, NULL) );
     m_handler_list.erase(fd);

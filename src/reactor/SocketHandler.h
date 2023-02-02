@@ -70,62 +70,80 @@ class SafeQueue
         std::condition_variable c;
 };
 
-class SessionManager;
-class SocketHandlerMessage;
+class SessionHandler;
+class SocketMessage;
 
 class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 {
     public:
-        SocketHandler(const shared_ptr<const SessionManager> m_session_manager, const uint16_t port, const int protocol);
-        SocketHandler(const shared_ptr<const SessionManager> m_session_manager, const int socket);
+        SocketHandler(const uint16_t port, const int protocol);
+        SocketHandler(const int socket);
 
         void start();
-        int handleEvent(const struct epoll_event& event);
-        void sendMsg(const shared_ptr<const SocketHandlerMessage> msg)
-            { return m_egress.enqueue(const_pointer_cast<SocketHandlerMessage>(msg)); } //mandatory cast for the queue
+        void stop();
+
+        int handleEvent(const struct epoll_event &event);
+        void sendMsg(const shared_ptr<const SocketMessage> msg)
+            { return m_egress.enqueue(const_pointer_cast<SocketMessage>(msg)); } //mandatory cast for the queue
 
         int getSocket() const { return m_socket; };
         int getProtocol() const { return m_protocol; };
-        const shared_ptr<const SessionManager> getSessionManager() const { return m_session_manager; }
 
-    private:
+        // Registers a session handler for a particular peer
+        const shared_ptr<SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
+        // Gets the session handler for a particular peer
+        const shared_ptr<SessionHandler> getSessionHandler(const struct sockaddr_in &addr);
+        // Remove an Event_Handler of a particular peer
+        void removeSessionHandler(const struct sockaddr_in &peer);
+
+    protected:
         int bindSocket(const uint16_t port);
         int acceptConnection() const;
+
+        virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket) const = 0;
+        virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
 
     private:
         int m_socket;
         int m_protocol;
         bool m_is_listening_socket;
-        const shared_ptr<const SessionManager> m_session_manager;
-        SafeQueue<shared_ptr<const SocketHandlerMessage>> m_egress;   // egress list stored at connected socket(tp) or master socket(udp)
+        map<uint64_t, shared_ptr<SessionHandler>> m_session_handler_list;   // UDP = list, TCP = 1 element
+        SafeQueue<shared_ptr<const SocketMessage>> m_egress;   // egress list stored at connected socket(tp) or master socket(udp)
 };
 
-class SocketHandlerMessage
+class SocketMessage
 {
     public:
-        SocketHandlerMessage(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
-        
-        const shared_ptr<const SocketHandler> getSocketHandler() const;
-        const struct sockaddr_in& getPeerAddress() const { return m_peer_address; }
+        SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
-        const vector<uint8_t> &payload_vector() const { return m_payload; }
+        const shared_ptr<const SessionHandler> getSessionHandler() const;
+        
+        virtual uint64_t size() const = 0;
 
     protected:
-        vector<uint8_t> &payload_vector() { return m_payload; }
+        //For ingress msg
+        virtual void push_back(uint8_t) = 0;
+        //For egress msg
+        virtual operator uint8_t*() const = 0;
+
+    private:
+        const std::weak_ptr<const SessionHandler> m_session_handler;
+
+    friend int SocketHandler::handleEvent(const struct epoll_event &event);
+};
+
+class SessionHandler: public std::enable_shared_from_this<SessionHandler>
+{
+    public:
+        SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
+    
+        const shared_ptr<const SocketHandler> getSocketHandler() const;
+        const struct sockaddr_in &getPeerAddress() const;
+
+        virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in) = 0;
 
     private:
         const std::weak_ptr<const SocketHandler> m_socket_handler;
         const struct sockaddr_in m_peer_address;
-        vector<uint8_t> m_payload;
-
-    friend int SocketHandler::handleEvent(const struct epoll_event& event);
-};
-
-class SessionManager: public std::enable_shared_from_this<SessionManager>
-{
-    public:
-        SessionManager();
-
-        void start(const uint16_t master_port, const int master_protocol) const;
-        virtual void onNewMessage(const shared_ptr<const SocketHandlerMessage> msg_in) = 0;
 };
