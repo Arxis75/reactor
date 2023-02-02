@@ -6,7 +6,7 @@ using std::cout;
 using std::hex;
 using std::dec;
 using std::endl;
-using std::min;
+using std::dynamic_pointer_cast;
 
 ConcreteSessionHandler::ConcreteSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
     : SessionHandler(socket_handler, peer_address)
@@ -14,14 +14,16 @@ ConcreteSessionHandler::ConcreteSessionHandler(const shared_ptr<const SocketHand
 
 void ConcreteSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
-    auto handler = getSocketHandler();
-    if(handler)
+    auto msg = dynamic_pointer_cast<const ConcreteSocketMessage>(msg_in);
+    auto handler = dynamic_pointer_cast<const ConcreteSocketHandler>(getSocketHandler());
+
+    if(msg && handler)
     {
         cout << dec << "@ " << (handler->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << handler->getSocket()
             << " => @" << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
-            << ", " << msg_in->size() << " Bytes received" << endl;
+            << ", " << msg->size() << " Bytes received" << endl;
 
-        const_pointer_cast<SocketHandler>(handler)->sendMsg(msg_in);     // echo
+        const_pointer_cast<ConcreteSocketHandler>(handler)->sendMsg(msg);     // echo
     }
 }
 

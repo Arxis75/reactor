@@ -309,6 +309,11 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
     return 0;
 }
 
+const uint64_t SocketHandler::makeKeyFromSockAddr(const struct sockaddr_in &addr)
+{
+    return (addr.sin_addr.s_addr << 16) + addr.sin_port;
+}
+
 // Gets the session handler for a particular peer
 const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr)
 {
@@ -320,7 +325,7 @@ const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const st
 // Register an Session_Handler of a particular peer
 const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &addr)
 {
-    uint64_t key = (addr.sin_addr.s_addr << 16) + addr.sin_port;
+    uint64_t key = makeKeyFromSockAddr(addr);
     auto it = m_session_handler_list.find(key);
     if( it != std::end(m_session_handler_list) )
         return it->second;
@@ -335,7 +340,7 @@ const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(con
 // Remove an Session_Handler of a particular peer.
 void SocketHandler::removeSessionHandler(const struct sockaddr_in &addr)
 {
-    uint64_t key = (addr.sin_addr.s_addr << 16) + addr.sin_port;
+    uint64_t key = makeKeyFromSockAddr(addr);
     m_session_handler_list.erase(key);
 }
 
