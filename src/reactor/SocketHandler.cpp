@@ -45,7 +45,7 @@ const std::shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() co
         return shared_ptr<const SocketHandler>(nullptr); 
 }
 
-void SessionHandler::close() const
+void SessionHandler::stop() const
 {
     auto handler = getSocketHandler();
     if( handler )
