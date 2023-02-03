@@ -147,14 +147,11 @@ class SocketMessage
         //For reading msg
         virtual operator const uint8_t*() const = 0;
         
-    protected:
         //For building msg
         virtual void push_back(const uint8_t) = 0;
 
     private:
         const std::weak_ptr<const SessionHandler> m_session_handler;
-
-    friend int SocketHandler::handleEvent(const struct epoll_event &event);
 };
 
 class SessionHandler: public std::enable_shared_from_this<SessionHandler>
