@@ -167,7 +167,7 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in) = 0;
 
-        void close() const;
+        void stop() const;
 
     private:
         const std::weak_ptr<const SocketHandler> m_socket_handler;
