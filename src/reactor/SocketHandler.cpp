@@ -45,9 +45,11 @@ const std::shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() co
         return shared_ptr<const SocketHandler>(nullptr); 
 }
 
-const struct sockaddr_in &SessionHandler::getPeerAddress() const
+void SessionHandler::close() const
 {
-    return m_peer_address;
+    auto handler = getSocketHandler();
+    if( handler )
+        const_pointer_cast<SocketHandler>(handler)->removeSessionHandler(getPeerAddress());
 }
 
 //-----------------------------------------------------------------------------------------------------------
