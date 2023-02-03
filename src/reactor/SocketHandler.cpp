@@ -19,7 +19,6 @@ using std::min;
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : m_session_handler(session_handler)
-    
 { }
 
 const shared_ptr<const SessionHandler> SocketMessage::getSessionHandler() const
