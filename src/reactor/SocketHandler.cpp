@@ -186,7 +186,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             //we have a new udp datagram
                             auto session = getSessionHandler(peer_address);
                             if(!session)
-                                registerSessionHandler(peer_address);
+                                session = registerSessionHandler(peer_address);
                             auto msg = makeSocketMessage(session);
                             for(int i=0;i<nbytes_read;i++)
                                 msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
@@ -212,7 +212,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     assert( !getpeername (m_socket , (struct sockaddr *)&peer_address , &len ));
                     auto session = getSessionHandler(peer_address);
                     if(!session)
-                        registerSessionHandler(peer_address);
+                        session = registerSessionHandler(peer_address);
                     auto msg = makeSocketMessage(session);
 
                     while( true )
