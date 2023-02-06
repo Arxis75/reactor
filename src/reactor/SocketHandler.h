@@ -101,23 +101,24 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         int getWriteBufferSize() const { return m_write_buffer_size; };
         int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
 
-        // Registers a session handler for a particular peer
-        const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         // Gets the session handler for a particular peer
-        const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr, const bool register_if_null = false);
+        const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr) const;
         // Remove an Event_Handler of a particular peer
         void removeSessionHandler(const struct sockaddr_in &peer);
 
     protected:
         int bindSocket(const uint16_t port);
         int acceptConnection() const;
+
+        // Registers a session handler for a particular peer
+        const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
 
     private:
-        inline const uint64_t makeKeyFromSockAddr(const struct sockaddr_in &addr);
+        inline const uint64_t makeKeyFromSockAddr(const struct sockaddr_in &addr) const;
 
     private:
         int m_socket;
