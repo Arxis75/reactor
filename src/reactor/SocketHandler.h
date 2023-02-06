@@ -112,7 +112,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         // Registers a session handler for a particular peer
         const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         // Gets the session handler for a particular peer
-        const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr);
+        const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr, const bool register_if_null = false);
         
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;

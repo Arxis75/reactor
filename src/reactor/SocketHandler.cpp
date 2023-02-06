@@ -184,7 +184,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         if( nbytes_read > 0)
                         {   
                             //we have a new udp datagram
-                            auto session = getSessionHandler(peer_address);
+                            auto session = getSessionHandler(peer_address, true);
                             auto msg = makeSocketMessage(session);
                             for(int i=0;i<nbytes_read;i++)
                                 msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
@@ -208,7 +208,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                 {
                     //Beginning of a new TCP stream
                     assert( !getpeername (m_socket , (struct sockaddr *)&peer_address , &len ));
-                    auto session = getSessionHandler(peer_address);
+                    auto session = getSessionHandler(peer_address, true);
                     auto msg = makeSocketMessage(session);
 
                     while( true )
@@ -316,11 +316,16 @@ const uint64_t SocketHandler::makeKeyFromSockAddr(const struct sockaddr_in &addr
 }
 
 // Gets the session handler for a particular peer
-const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr)
+const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr, const bool register_if_null)
 {
-    // If the session handler already exists,
-    // registerSessionHandler(addr) will return it
-    return registerSessionHandler(addr);
+    uint64_t key = makeKeyFromSockAddr(addr);
+    auto it = m_session_handler_list.find(key);
+    if( it != std::end(m_session_handler_list) )
+        return it->second;
+    else if(register_if_null)
+        return registerSessionHandler(addr);
+    else
+        return shared_ptr<const SessionHandler>(nullptr);
 }
 
 // Register an Session_Handler of a particular peer
