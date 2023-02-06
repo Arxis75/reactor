@@ -101,6 +101,8 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         int getWriteBufferSize() const { return m_write_buffer_size; };
         int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
 
+        // Registers a session handler for a particular peer
+        const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         // Gets the session handler for a particular peer
         const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr) const;
         // Remove an Event_Handler of a particular peer
@@ -109,9 +111,6 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
     protected:
         int bindSocket(const uint16_t port);
         int acceptConnection() const;
-
-        // Registers a session handler for a particular peer
-        const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;
