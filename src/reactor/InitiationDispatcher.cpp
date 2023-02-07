@@ -19,7 +19,8 @@ Initiation_Dispatcher::Initiation_Dispatcher()
 // etc.).
 void Initiation_Dispatcher::registerSocketHandler(std::shared_ptr<SocketHandler> handler, struct epoll_event &ev)
 {
-    m_handler_list.insert(make_pair(ev.data.fd, handler));
+    int fd = ev.data.fd;
+    m_handler_list.insert(make_pair(fd, handler));
     assert( !epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, ev.data.fd, &ev) );
 }
 
