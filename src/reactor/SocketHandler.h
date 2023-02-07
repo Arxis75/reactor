@@ -108,6 +108,8 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         // Remove an Event_Handler of a particular peer
         void removeSessionHandler(const struct sockaddr_in &peer);
 
+        size_t getSessionsCount() const { return m_session_handler_list.size(); }
+
     protected:
         int bindSocket(const uint16_t port);
         int acceptConnection() const;
