@@ -7,7 +7,7 @@
 #include <string.h>         //memset
 #include <assert.h>
 #include <iostream>         //cout, EXIT_FAILURE, NULL
-//#include <algorithm>
+#include <algorithm>
 
 using std::cout;
 using std::hex;
@@ -375,4 +375,18 @@ void SocketHandler::stop()
     // - the egress message(s) in its queue,
     // - the SocketHandler => close the kernel socket through the destructor
     Initiation_Dispatcher::GetInstance().removeSocketHandler(m_socket);
+}
+
+void SocketHandler::blacklist(const struct sockaddr_in &addr)
+{
+    if( !isBlacklisted(addr) )
+        m_blacklisted_peers.push_back(makeKeyFromSockAddr(addr));
+}
+bool SocketHandler::isBlacklisted(const struct sockaddr_in &addr) const
+{
+    return find(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)) != m_blacklisted_peers.end();
+}
+void SocketHandler::unblacklist(const struct sockaddr_in &addr)
+{
+    m_blacklisted_peers.erase(remove(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)), m_blacklisted_peers.end());
 }
