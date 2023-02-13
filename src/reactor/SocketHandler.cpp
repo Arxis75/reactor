@@ -128,19 +128,25 @@ int SocketHandler::acceptConnection() const
 
     if(new_socket > 0)
     {
-        // Set to non-blocking
-        assert( !fcntl(new_socket, F_SETFL, O_NONBLOCK) );
+        if( !isBlacklisted(peer_address) )
+        {
+            // Set to non-blocking
+            assert( !fcntl(new_socket, F_SETFL, O_NONBLOCK) );
 
-        //sets the KEEP_ALIVE params
-        int optval = 1;
-        int keepcnt = 2;            // default: 9 probes
-        int keepidle = 30;          // default: 7200s = 2h before first probe
-        int keepintvl = 10;         // default: 75s between probes
-        assert( !setsockopt(new_socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(int)) );
-        assert( !setsockopt(new_socket, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(int)) );
-        assert( !setsockopt(new_socket, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(int)) );
-        assert( !setsockopt(new_socket, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(int)) );
-        return new_socket;
+            //sets the KEEP_ALIVE params
+            int optval = 1;
+            int keepcnt = 2;            // default: 9 probes
+            int keepidle = 30;          // default: 7200s = 2h before first probe
+            int keepintvl = 10;         // default: 75s between probes
+            assert( !setsockopt(new_socket, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(int)) );
+            assert( !setsockopt(new_socket, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(int)) );
+            assert( !setsockopt(new_socket, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(int)) );
+            assert( !setsockopt(new_socket, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(int)) );
+            return new_socket;
+        }
+        else
+            //Close the socket before any session creation
+            close(new_socket);
     }
     return 0;
 }
@@ -182,19 +188,24 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         nbytes_read = recvfrom(m_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&peer_address, &len );
 
                         if( nbytes_read > 0)
-                        {   
-                            //we have a new udp datagram
-                            auto session = getSessionHandler(peer_address);
-                            if(!session)
-                                session = registerSessionHandler(peer_address);
-                            auto msg = makeSocketMessage(session);
-                            for(int i=0;i<nbytes_read;i++)
-                                msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                        {
+                            if( isBlacklisted(peer_address) )
+                                removeSessionHandler(peer_address);
+                            else
+                            {
+                                //we have a new udp datagram
+                                auto session = getSessionHandler(peer_address);
+                                if(!session)
+                                    session = registerSessionHandler(peer_address);
+                                auto msg = makeSocketMessage(session);
+                                for(int i=0;i<nbytes_read;i++)
+                                    msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
 
-                            //enqueue the datagram
-                            // We make the assumption here that the read buffer size is big
-                            // enough to contain the largest message, i.e. 1 datagram = 1 msg
-                            const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                                //enqueue the datagram
+                                // We make the assumption here that the read buffer size is big
+                                // enough to contain the largest message, i.e. 1 datagram = 1 msg
+                                const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                            }
                         }
                         else if( nbytes_read == 0 )
                             break;
