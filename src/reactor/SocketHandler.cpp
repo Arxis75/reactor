@@ -221,33 +221,39 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                 {
                     //Beginning of a new TCP stream
                     assert( !getpeername (m_socket , (struct sockaddr *)&peer_address , &len ));
-                    auto session = getSessionHandler(peer_address);
-                    if(!session)
-                        session = registerSessionHandler(peer_address);
-                    auto msg = makeSocketMessage(session);
 
-                    while( true )
+                    if( isBlacklisted(peer_address) )
+                        removeSessionHandler(peer_address);
+                    else
                     {
-                        nbytes_read = recv(m_socket, buffer, sizeof(buffer), 0);
+                        auto session = getSessionHandler(peer_address);
+                        if(!session)
+                            session = registerSessionHandler(peer_address);
+                        auto msg = makeSocketMessage(session);
 
-                        if( nbytes_read > 0)
-                        {   
-                            //pushes more packets of the same msg
-                            for(int i=0;i<nbytes_read;i++)
-                                msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
-                        }
-                        else if( nbytes_read == 0 )
-                            break;
-                        else if( nbytes_read == -1 )
+                        while( true )
                         {
-                            if( errno != EAGAIN )
-                                cout << "Error: socket " << m_socket << " read error..." << endl;
-                            break;
-                        }
-                    }
+                            nbytes_read = recv(m_socket, buffer, sizeof(buffer), 0);
 
-                    //enqueue the message
-                    const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                            if( nbytes_read > 0)
+                            {   
+                                //pushes more packets of the same msg
+                                for(int i=0;i<nbytes_read;i++)
+                                    msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                            }
+                            else if( nbytes_read == 0 )
+                                break;
+                            else if( nbytes_read == -1 )
+                            {
+                                if( errno != EAGAIN )
+                                    cout << "Error: socket " << m_socket << " read error..." << endl;
+                                break;
+                            }
+                        }
+
+                        //enqueue the message
+                        const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                    }
                 }
             }
         }
