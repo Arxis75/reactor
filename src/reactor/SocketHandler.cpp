@@ -397,7 +397,12 @@ void SocketHandler::stop()
 void SocketHandler::blacklist(const struct sockaddr_in &addr)
 {
     if( !isBlacklisted(addr) )
+    {
+        //Stops any current session
+        removeSessionHandler(addr);
+        //Adds to the blacklist
         m_blacklisted_peers.push_back(makeKeyFromSockAddr(addr));
+    }
 }
 bool SocketHandler::isBlacklisted(const struct sockaddr_in &addr) const
 {
