@@ -397,17 +397,15 @@ void SocketHandler::stop()
 void SocketHandler::blacklist(const struct sockaddr_in &addr)
 {
     if( !isBlacklisted(addr) )
-    {
-        //Stops any current session
-        removeSessionHandler(addr);
         //Adds to the blacklist
         m_blacklisted_peers.push_back(makeKeyFromSockAddr(addr));
-    }
 }
+
 bool SocketHandler::isBlacklisted(const struct sockaddr_in &addr) const
 {
     return find(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)) != m_blacklisted_peers.end();
 }
+
 void SocketHandler::unblacklist(const struct sockaddr_in &addr)
 {
     m_blacklisted_peers.erase(remove(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)), m_blacklisted_peers.end());
