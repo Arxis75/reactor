@@ -189,9 +189,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
 
                         if( nbytes_read > 0)
                         {
-                            if( isBlacklisted(peer_address) )
-                                removeSessionHandler(peer_address);
-                            else
+                            if( !isBlacklisted(peer_address) )
                             {
                                 //we have a new udp datagram
                                 auto session = getSessionHandler(peer_address);
@@ -222,9 +220,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     //Beginning of a new TCP stream
                     assert( !getpeername (m_socket , (struct sockaddr *)&peer_address , &len ));
 
-                    if( isBlacklisted(peer_address) )
-                        removeSessionHandler(peer_address);
-                    else
+                    if( !isBlacklisted(peer_address) )
                     {
                         auto session = getSessionHandler(peer_address);
                         if(!session)
