@@ -1,14 +1,15 @@
 //#include <reactor/InitiationDispatcher.h>
-#include <Concrete.h>
+#include <UDP.h>
+#include <TCP.h>
 
 #define SERVER_PORT 40404
 
 int main(int argc , char *argv[])  
 {   
-    if( shared_ptr<ConcreteSocketHandler> udp = make_shared<ConcreteSocketHandler>(SERVER_PORT, IPPROTO_UDP) )
+    if( shared_ptr<UDPSocketHandler> udp = make_shared<UDPSocketHandler>(SERVER_PORT) )
     {
         udp->start();
-        if( shared_ptr<ConcreteSocketHandler> tcp = make_shared<ConcreteSocketHandler>(SERVER_PORT, IPPROTO_TCP) )
+        if( shared_ptr<TCPSocketHandler> tcp = make_shared<TCPSocketHandler>(SERVER_PORT) )
             tcp->start();
     }
 

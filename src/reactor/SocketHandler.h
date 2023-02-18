@@ -16,6 +16,7 @@ using std::mutex;
 
 using std::make_shared;
 using std::shared_ptr;
+using std::weak_ptr;
 using std::const_pointer_cast;
 
 // A threadsafe-queue.
@@ -94,21 +95,21 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         // Enqueue egress msg to be sent to peer
         void sendMsg(const shared_ptr<const SocketMessage> msg) { m_egress.enqueue(msg); }
 
-        int getSocket() const { return m_socket; };
-        const uint16_t getBindingPort() const { return m_binding_port; }
-        int getProtocol() const { return m_protocol; };
-        int getReadBufferSize() const { return m_read_buffer_size; };        
-        int getWriteBufferSize() const { return m_write_buffer_size; };
-        int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
+        inline int getSocket() const { return m_socket; };
+        inline const uint16_t getBindingPort() const { return m_binding_port; }
+        inline int getProtocol() const { return m_protocol; };
+        inline int getReadBufferSize() const { return m_read_buffer_size; };        
+        inline int getWriteBufferSize() const { return m_write_buffer_size; };
+        inline int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
 
         // Registers a session handler for a particular peer
         const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &addr);
         // Gets the session handler for a particular peer
         const shared_ptr<const SessionHandler> getSessionHandler(const struct sockaddr_in &addr) const;
+        // Gets the current number of living sessions
+        size_t getSessionsCount() const;
         // Remove an Event_Handler of a particular peer
         void removeSessionHandler(const struct sockaddr_in &peer);
-
-        size_t getSessionsCount() const { return m_session_handler_list.size(); }
 
         void blacklist(const struct sockaddr_in &addr);
         bool isBlacklisted(const struct sockaddr_in &addr) const;
@@ -123,6 +124,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
 
     private:
+        // key = htonl(IP) || htons(PORT)
         inline const uint64_t makeKeyFromSockAddr(const struct sockaddr_in &addr) const;
 
     private:
@@ -133,11 +135,12 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         const int m_write_buffer_size;
         const int m_tcp_connection_backlog_size;
         const bool m_is_listening_socket;
-        // the SocketHandler is the sole owner of the SessionHandlers
-        map<uint64_t, const shared_ptr<const SessionHandler>> m_session_handler_list;   // UDP = list, TCP = 1 element
-        // the SocketHandler is the sole owner of the egress msgs
+        // List of SessionHandlers (keys forged by makeKeyFromSockAddr(...))
+        shared_ptr<map<uint64_t, const shared_ptr<const SessionHandler>>> m_session_handler_list;
+        // List of blacklisted peers (keys forged by makeKeyFromSockAddr(...))
+        shared_ptr<vector<uint64_t>> m_blacklisted_peers;
+        // The SocketHandler (master or connected) is the sole owner of the egress msgs
         SafeQueue<shared_ptr<const SocketMessage>> m_egress;   // egress list stored at connected socket(tp) or master socket(udp)
-        vector<uint64_t> m_blacklisted_peers;
 };
 
 class SocketMessage
@@ -156,7 +159,7 @@ class SocketMessage
         virtual void push_back(const uint8_t) = 0;
 
     private:
-        const std::weak_ptr<const SessionHandler> m_session_handler;
+        const weak_ptr<const SessionHandler> m_session_handler;
 };
 
 class SessionHandler: public std::enable_shared_from_this<SessionHandler>
@@ -172,6 +175,6 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
         virtual void close() const;
 
     private:
-        const std::weak_ptr<const SocketHandler> m_socket_handler;
+        const weak_ptr<const SocketHandler> m_socket_handler;
         const struct sockaddr_in m_peer_address;
 };

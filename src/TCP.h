@@ -5,10 +5,10 @@
 
 using std::vector;
 
-class ConcreteSocketMessage: public SocketMessage
+class TCPSocketMessage: public SocketMessage
 {
     public:
-        ConcreteSocketMessage(const shared_ptr<const SessionHandler> session_handler);
+        TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
         
         virtual uint64_t size() const;
 
@@ -21,21 +21,19 @@ class ConcreteSocketMessage: public SocketMessage
         vector<uint8_t> vect;
 };
 
-class ConcreteSessionHandler: public SessionHandler
+class TCPSessionHandler: public SessionHandler
 {
     public:
-        ConcreteSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
+        TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
 };
 
-class ConcreteSocketHandler: public SocketHandler
+class TCPSocketHandler: public SocketHandler
 {
     public:
-        ConcreteSocketHandler(const uint16_t binding_port, const int protocol,
-                              const int read_buffer_size = 4096, const int write_buffer_size = 4096,
-                              const int tcp_connection_backlog_size = 10);
-        ConcreteSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
+        TCPSocketHandler(const uint16_t binding_port);
+        TCPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
 
     protected:
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const;
