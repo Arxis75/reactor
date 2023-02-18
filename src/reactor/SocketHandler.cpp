@@ -363,6 +363,10 @@ void SocketHandler::removeSessionHandler(const struct sockaddr_in &addr)
 {
     uint64_t key = makeKeyFromSockAddr(addr);
     m_session_handler_list.erase(key);
+
+    // Release the socket handler for a TCP connected socket
+    if(m_protocol == IPPROTO_TCP && !m_is_listening_socket)
+        stop();
 }
 
 void SocketHandler::start()
