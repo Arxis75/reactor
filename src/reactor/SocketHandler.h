@@ -111,9 +111,8 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         // Remove an Event_Handler of a particular peer
         void removeSessionHandler(const struct sockaddr_in &peer);
 
-        void blacklist(const struct sockaddr_in &addr);
+        void blacklist(const bool status, const struct sockaddr_in &addr);
         bool isBlacklisted(const struct sockaddr_in &addr) const;
-        void unblacklist(const struct sockaddr_in &addr);
 
     protected:
         int bindSocket(const uint16_t port);
