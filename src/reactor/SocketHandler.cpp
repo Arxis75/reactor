@@ -23,10 +23,7 @@ SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_hand
 
 const shared_ptr<const SessionHandler> SocketMessage::getSessionHandler() const
 {
-    if( auto session = m_session_handler.lock() )
-        return session;
-    else
-        return shared_ptr<const SessionHandler>(nullptr);
+    return m_session_handler.lock();
 }
 
 //-----------------------------------------------------------------------------------------------------------
