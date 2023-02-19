@@ -154,7 +154,7 @@ class SocketMessage
 
         const shared_ptr<const SessionHandler> getSessionHandler() const;
         
-        virtual uint64_t size() const = 0;
+        virtual uint32_t size() const = 0;
 
         //For reading access by pointer
         virtual operator const uint8_t*() const = 0;
