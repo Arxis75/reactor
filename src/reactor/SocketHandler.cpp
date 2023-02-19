@@ -345,7 +345,7 @@ const shared_ptr<SocketMessage> SocketHandler::makeSocketMessageWithSession(cons
     return makeSocketMessage(session);
 }
 
-void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg) const
+void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg)
 {
     //By default, dispatch the message to the message's session handler
     if( auto session = msg->getSessionHandler() )

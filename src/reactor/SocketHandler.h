@@ -120,8 +120,8 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         
         const shared_ptr<SocketMessage> makeSocketMessageWithSession(const struct sockaddr_in &peer);
 
-        //By default
-        virtual void dispatchMessage(const shared_ptr<const SocketMessage> msg) const;
+        //By default, dispatch to the message session
+        virtual void dispatchMessage(const shared_ptr<const SocketMessage> msg);
         
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;
