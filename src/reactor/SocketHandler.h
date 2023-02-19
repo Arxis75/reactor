@@ -118,6 +118,11 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         int bindSocket(const uint16_t port);
         int acceptConnection() const;
         
+        const shared_ptr<SocketMessage> makeSocketMessageWithSession(const struct sockaddr_in &peer);
+
+        //By default
+        virtual void dispatchMessage(const shared_ptr<const SocketMessage> msg) const;
+        
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address) = 0;
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
@@ -151,11 +156,13 @@ class SocketMessage
         
         virtual uint64_t size() const = 0;
 
-        //For reading msg
+        //For reading access by pointer
         virtual operator const uint8_t*() const = 0;
+        //For writing access by pointer
+        virtual operator uint8_t*() = 0;
         
-        //For building msg
-        virtual void push_back(const uint8_t) = 0;
+        //For reallocating space to the msg content
+        virtual void resize(const uint32_t size) = 0;
 
     private:
         const weak_ptr<const SessionHandler> m_session_handler;

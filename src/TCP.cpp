@@ -68,7 +68,12 @@ TCPSocketMessage::operator const uint8_t*() const
     return vect.data();
 }
 
-void TCPSocketMessage::push_back(const uint8_t value)
-{ 
-    vect.push_back(value);
+TCPSocketMessage::operator uint8_t*()
+{
+    return vect.data();
+}
+
+void TCPSocketMessage::resize(const uint32_t size)
+{
+    vect.resize(size, 0);
 }

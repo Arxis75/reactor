@@ -68,7 +68,12 @@ UDPSocketMessage::operator const uint8_t*() const
     return vect.data();
 }
 
-void UDPSocketMessage::push_back(const uint8_t value)
-{ 
-    vect.push_back(value);
+UDPSocketMessage::operator uint8_t*()
+{
+    return vect.data();
+}
+
+void UDPSocketMessage::resize(const uint32_t size)
+{
+    vect.resize(size, 0);
 }

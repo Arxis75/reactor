@@ -12,10 +12,12 @@ class UDPSocketMessage: public SocketMessage
         
         virtual uint64_t size() const;
 
+        //For reading access by pointer
         virtual operator const uint8_t*() const;
-        
-    protected:
-        virtual void push_back(const uint8_t value);
+        //For writing access by pointer
+        virtual operator uint8_t*();
+
+        virtual void resize(const uint32_t size);
     
     private:
         vector<uint8_t> vect;

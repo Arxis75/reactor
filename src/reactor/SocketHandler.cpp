@@ -23,7 +23,10 @@ SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_hand
 
 const shared_ptr<const SessionHandler> SocketMessage::getSessionHandler() const
 {
-   return m_session_handler.lock();
+    if( auto session = m_session_handler.lock() )
+        return session;
+    else
+        return shared_ptr<const SessionHandler>(nullptr);
 }
 
 //-----------------------------------------------------------------------------------------------------------
@@ -189,18 +192,18 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         {
                             if( !isBlacklisted(peer_address) )
                             {
-                                //we have a new udp datagram
-                                auto session = getSessionHandler(peer_address);
-                                if(!session)
-                                    session = registerSessionHandler(peer_address);
-                                auto msg = makeSocketMessage(session);
-                                for(int i=0;i<nbytes_read;i++)
-                                    msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                                // We have a new udp datagram:
+                                // - create a new message and possibly a new session
+                                auto msg = makeSocketMessageWithSession(peer_address);
+                                // - allocates the proper size to the msg container
+                                msg->resize(nbytes_read);
+                                // - copy the buffer into the msg container
+                                memcpy(msg.get()[0], &buffer[0], nbytes_read);
 
-                                //enqueue the datagram
+                                //Dispatch the datagram to the session
                                 // We make the assumption here that the read buffer size is big
                                 // enough to contain the largest message, i.e. 1 datagram = 1 msg
-                                const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                                dispatchMessage(msg);
                             }
                         }
                         else if( nbytes_read == 0 )
@@ -220,10 +223,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
 
                     if( !isBlacklisted(peer_address) )
                     {
-                        auto session = getSessionHandler(peer_address);
-                        if(!session)
-                            session = registerSessionHandler(peer_address);
-                        auto msg = makeSocketMessage(session);
+                        auto msg = makeSocketMessageWithSession(peer_address);
 
                         while( true )
                         {
@@ -232,8 +232,9 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             if( nbytes_read > 0)
                             {   
                                 //pushes more packets of the same msg
-                                for(int i=0;i<nbytes_read;i++)
-                                    msg->push_back(*reinterpret_cast<uint8_t*>(&buffer[i]));
+                                uint32_t already_read = msg->size();
+                                msg->resize(already_read + nbytes_read);
+                                memcpy(msg.get()[already_read], &buffer[0], nbytes_read);
                             }
                             else if( nbytes_read == 0 )
                                 break;
@@ -245,8 +246,8 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             }
                         }
 
-                        //enqueue the message
-                        const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
+                        //Dispatch the message to the session
+                        dispatchMessage(msg);
                     }
                 }
             }
@@ -285,7 +286,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             size_t send_size =  msg->size();
                             assert(send_size <= sizeof(buffer));
                             
-                            memcpy(buffer, &(*msg)[0], send_size);
+                            memcpy(buffer, msg.get()[0], send_size);
                             
                             struct sockaddr_in peer_address = session->getPeerAddress();
                             socklen_t len = sizeof(peer_address);
@@ -297,7 +298,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             while( already_sent < msg->size() )
                             {
                                 size_t send_size =  min(msg->size() - already_sent, sizeof(buffer));
-                                memcpy(buffer, &(*msg)[already_sent], send_size);
+                                memcpy(buffer, msg.get()[already_sent], send_size);
 
                                 nbytes_sent = send(m_socket, buffer, send_size, MSG_NOSIGNAL);
 
@@ -337,6 +338,21 @@ void SocketHandler::start()
         ev.events |= EPOLLOUT|EPOLLRDHUP;   //for TCP connected socket
     ev.data.fd = m_socket;
     Initiation_Dispatcher::GetInstance().registerSocketHandler(shared_from_this(), ev);
+}
+
+const shared_ptr<SocketMessage> SocketHandler::makeSocketMessageWithSession(const struct sockaddr_in &peer)
+{
+    auto session = getSessionHandler(peer);
+    if(!session)
+        session = registerSessionHandler(peer);
+    return makeSocketMessage(session);
+}
+
+void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg) const
+{
+    //By default, dispatch the message to the message's session handler
+    if( auto session = msg->getSessionHandler() )
+        const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
 }
 
 void SocketHandler::stop()
