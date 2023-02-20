@@ -8,6 +8,7 @@ using std::vector;
 class UDPSocketMessage: public SocketMessage
 {
     public:
+        UDPSocketMessage(const shared_ptr<const UDPSocketMessage> msg);
         UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
         
         virtual uint64_t size() const;
@@ -20,7 +21,7 @@ class UDPSocketMessage: public SocketMessage
         virtual void resize(const uint32_t size);
     
     private:
-        vector<uint8_t> vect;
+        vector<uint8_t> m_vect;
 };
 
 class UDPSessionHandler: public SessionHandler
@@ -40,5 +41,6 @@ class UDPSocketHandler: public SocketHandler
     protected:
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
-        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const;
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const;        
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SocketMessage> msg) const;
 };

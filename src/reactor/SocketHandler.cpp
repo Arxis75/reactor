@@ -40,8 +40,7 @@ const std::shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() co
 
 void SessionHandler::close() const
 {
-    auto handler = getSocketHandler();
-    if( handler )
+    if( auto handler = getSocketHandler() )
         const_pointer_cast<SocketHandler>(handler)->removeSessionHandler(getPeerAddress());
 }
 
@@ -200,7 +199,8 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 //Dispatch the datagram to the session
                                 // We make the assumption here that the read buffer size is big
                                 // enough to contain the largest message, i.e. 1 datagram = 1 msg
-                                dispatchMessage(msg);
+                                // Making a copy invokes the protocol-level constructor
+                                dispatchMessage(makeSocketMessage(msg));
                             }
                         }
                         else if( nbytes_read == 0 )
@@ -243,8 +243,9 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             }
                         }
 
-                        //Dispatch the message to the session
-                        dispatchMessage(msg);
+                        // Dispatch the message to the session
+                        // Making a copy invokes the protocol-level constructor
+                        dispatchMessage(makeSocketMessage(msg));
                     }
                 }
             }

@@ -30,12 +30,12 @@ void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_i
 //----------------------------------------------------------------------------------------------------------------
 
 TCPSocketHandler::TCPSocketHandler( const uint16_t binding_port)
-    : SocketHandler(binding_port, IPPROTO_TCP, 4096, 4096, 10)
+    : SocketHandler(binding_port, IPPROTO_TCP, 4096, 4096, 0)
 { }
 
 TCPSocketHandler::TCPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
     : SocketHandler(socket, master_handler)
-{ }
+{ /*USELESS TCP INTERFACE*/ }
 
 const shared_ptr<SocketHandler> TCPSocketHandler::makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const
 { 
@@ -52,7 +52,17 @@ const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared
     return make_shared<TCPSocketMessage>(session_handler);
 }
 
+const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SocketMessage> msg) const
+{
+    return make_shared<TCPSocketMessage>(std::dynamic_pointer_cast<const TCPSocketMessage>(msg));
+}
+
 //------------------------------------------------------------------------------------------------------
+
+TCPSocketMessage::TCPSocketMessage(const shared_ptr<const TCPSocketMessage> msg)
+    : SocketMessage(msg->getSessionHandler())
+    , m_vect(msg->m_vect)
+{ }
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
@@ -60,20 +70,20 @@ TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> sessio
 
 uint64_t TCPSocketMessage::size() const
 {
-    return vect.size();
+    return m_vect.size();
 }
 
 TCPSocketMessage::operator const uint8_t*() const
 {
-    return vect.data();
+    return m_vect.data();
 }
 
 TCPSocketMessage::operator uint8_t*()
 {
-    return vect.data();
+    return m_vect.data();
 }
 
 void TCPSocketMessage::resize(const uint32_t size)
 {
-    vect.resize(size, 0);
+    m_vect.resize(size, 0);
 }

@@ -8,6 +8,7 @@ using std::vector;
 class TCPSocketMessage: public SocketMessage
 {
     public:
+        TCPSocketMessage(const shared_ptr<const TCPSocketMessage> msg);
         TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
         
         virtual uint64_t size() const;
@@ -16,11 +17,11 @@ class TCPSocketMessage: public SocketMessage
         virtual operator const uint8_t*() const;
         //For writing access by pointer
         virtual operator uint8_t*();
-        
+
         virtual void resize(const uint32_t size);
     
     private:
-        vector<uint8_t> vect;
+        vector<uint8_t> m_vect;
 };
 
 class TCPSessionHandler: public SessionHandler
@@ -40,5 +41,6 @@ class TCPSocketHandler: public SocketHandler
     protected:
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
-        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const;
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const;        
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SocketMessage> msg) const;
 };

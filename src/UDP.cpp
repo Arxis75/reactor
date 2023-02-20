@@ -52,7 +52,17 @@ const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared
     return make_shared<UDPSocketMessage>(session_handler);
 }
 
+const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared_ptr<const SocketMessage> msg) const
+{
+    return make_shared<UDPSocketMessage>(std::dynamic_pointer_cast<const UDPSocketMessage>(msg));
+}
+
 //------------------------------------------------------------------------------------------------------
+
+UDPSocketMessage::UDPSocketMessage(const shared_ptr<const UDPSocketMessage> msg)
+    : SocketMessage(msg->getSessionHandler())
+    , m_vect(msg->m_vect)
+{ }
 
 UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
@@ -60,20 +70,20 @@ UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SessionHandler> sessio
 
 uint64_t UDPSocketMessage::size() const
 {
-    return vect.size();
+    return m_vect.size();
 }
 
 UDPSocketMessage::operator const uint8_t*() const
 {
-    return vect.data();
+    return m_vect.data();
 }
 
 UDPSocketMessage::operator uint8_t*()
 {
-    return vect.data();
+    return m_vect.data();
 }
 
 void UDPSocketMessage::resize(const uint32_t size)
 {
-    vect.resize(size, 0);
+    m_vect.resize(size, 0);
 }
