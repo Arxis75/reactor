@@ -85,8 +85,6 @@ SocketHandler::SocketHandler(const uint16_t binding_port, const int protocol,
     , m_write_buffer_size(write_buffer_size)
     , m_tcp_connection_backlog_size(tcp_connection_backlog_size)
     , m_is_listening_socket(protocol == IPPROTO_TCP ? true : false)
-    , m_session_handler_list(make_shared<map<uint64_t, const shared_ptr<const SessionHandler>>>())
-    , m_blacklisted_peers(make_shared<vector<uint64_t>>())
 {
     bindSocket(m_binding_port);
 
@@ -102,8 +100,6 @@ SocketHandler::SocketHandler(const int socket, const shared_ptr<const SocketHand
     , m_write_buffer_size(master_handler->m_write_buffer_size)
     , m_tcp_connection_backlog_size(master_handler->m_tcp_connection_backlog_size)
     , m_is_listening_socket(false)
-    , m_session_handler_list(master_handler->m_session_handler_list)
-    , m_blacklisted_peers(master_handler->m_blacklisted_peers)
 { }
 
 SocketHandler::~SocketHandler()
@@ -404,23 +400,20 @@ const uint64_t SocketHandler::makeKeyFromSockAddr(const struct sockaddr_in &addr
 const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &addr)
 {
     uint64_t key = makeKeyFromSockAddr(addr);
-    auto it = m_session_handler_list->find(key);
-    if( it != std::end(*m_session_handler_list) )
-        return it->second;
-    else
-    {
-        shared_ptr<SessionHandler> session_handler = makeSessionHandler(shared_from_this(), addr);
-        auto inserted = m_session_handler_list->insert(make_pair(key, session_handler));
-        return inserted.first->second;
-    }
+    shared_ptr<SessionHandler> session_handler = makeSessionHandler(shared_from_this(), addr);
+    // It is important to maintain an existing Session(IP:Port) context
+    // This is why map::insert is used here (insertion only if new key)
+    auto inserted = m_session_handler_list.insert(make_pair(key, session_handler));
+    return session_handler;
+
 }
 
 // Gets the session handler for a particular peer
 const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr) const
 {
     uint64_t key = makeKeyFromSockAddr(addr);
-    auto it = m_session_handler_list->find(key);
-    if( it != std::end(*m_session_handler_list) )
+    auto it = m_session_handler_list.find(key);
+    if( it != m_session_handler_list.end() )
         return it->second;
     else
         return shared_ptr<const SessionHandler>(nullptr);
@@ -430,7 +423,7 @@ const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const st
 void SocketHandler::removeSessionHandler(const struct sockaddr_in &addr)
 {
     uint64_t key = makeKeyFromSockAddr(addr);
-    m_session_handler_list->erase(key);
+    m_session_handler_list.erase(key);
     
     if( m_protocol == IPPROTO_TCP && !m_is_listening_socket)
         // Destruct the connected TCP SocketHandler
@@ -439,7 +432,7 @@ void SocketHandler::removeSessionHandler(const struct sockaddr_in &addr)
 
 size_t SocketHandler::getSessionsCount() const
 {
-    return m_session_handler_list->size();
+    return m_session_handler_list.size();
 }
 
 void SocketHandler::blacklist(const bool status, const struct sockaddr_in &addr)
@@ -449,14 +442,14 @@ void SocketHandler::blacklist(const bool status, const struct sockaddr_in &addr)
         // Set the blacklist status
         if( !isBlacklisted(addr) )
             // Adds to the blacklist
-            m_blacklisted_peers->push_back(makeKeyFromSockAddr(addr));
+            m_blacklisted_peers.push_back(makeKeyFromSockAddr(addr));
     }
     else
         // Remove the blacklist status
-        m_blacklisted_peers->erase(remove(m_blacklisted_peers->begin(), m_blacklisted_peers->end(), makeKeyFromSockAddr(addr)), m_blacklisted_peers->end());
+        m_blacklisted_peers.erase(remove(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)), m_blacklisted_peers.end());
 }
 
 bool SocketHandler::isBlacklisted(const struct sockaddr_in &addr) const
 {
-    return find(m_blacklisted_peers->begin(), m_blacklisted_peers->end(), makeKeyFromSockAddr(addr)) != m_blacklisted_peers->end();
+    return find(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)) != m_blacklisted_peers.end();
 }

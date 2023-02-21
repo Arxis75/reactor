@@ -142,9 +142,9 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         const int m_tcp_connection_backlog_size;
         const bool m_is_listening_socket;
         // List of SessionHandlers (keys forged by makeKeyFromSockAddr(...))
-        shared_ptr<map<uint64_t, const shared_ptr<const SessionHandler>>> m_session_handler_list;
+        map<uint64_t, shared_ptr<const SessionHandler>> m_session_handler_list;
         // List of blacklisted peers (keys forged by makeKeyFromSockAddr(...))
-        shared_ptr<vector<uint64_t>> m_blacklisted_peers;
+        vector<uint64_t> m_blacklisted_peers;
         // The SocketHandler (master or connected) is the sole owner of the egress msgs
         SafeQueue<shared_ptr<const SocketMessage>> m_egress;   // egress list stored at connected socket(tp) or master socket(udp)
 };
