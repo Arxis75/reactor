@@ -19,6 +19,8 @@ class TCPSocketMessage: public SocketMessage
         virtual operator uint8_t*();
 
         virtual void resize(const uint32_t size);
+
+        virtual void print() const {};
     
     private:
         vector<uint8_t> m_vect;

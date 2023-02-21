@@ -38,6 +38,27 @@ const std::shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() co
     return m_socket_handler.lock();
 }
 
+void SessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
+{
+    if( auto server = getSocketHandler() )
+    {
+        
+        cout << (server->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) << ": RECEIVING " << msg_in->size() << " Bytes FROM @" << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port) << endl;
+        msg_in->print();
+    }
+}
+
+void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
+{
+    if( auto server = getSocketHandler() )
+    {
+        cout << (server->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) << ": SENDING " << msg_out->size() << " Bytes TO @" << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port) << endl;
+        msg_out->print();
+
+        const_pointer_cast<SocketHandler>(server)->sendMsg(msg_out);
+    }
+}
+
 void SessionHandler::close() const
 {
     if( auto handler = getSocketHandler() )
@@ -194,7 +215,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 // - allocates the proper size to the msg container
                                 msg->resize(nbytes_read);
                                 // - copy the buffer into the msg container
-                                memcpy(msg.get()[0], &buffer[0], nbytes_read);
+                                memcpy(&(*msg.get())[0], &buffer[0], nbytes_read);
 
                                 //Dispatch the datagram to the session
                                 // We make the assumption here that the read buffer size is big
@@ -231,7 +252,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 //pushes more packets of the same msg
                                 uint32_t already_read = msg->size();
                                 msg->resize(already_read + nbytes_read);
-                                memcpy(msg.get()[already_read], &buffer[0], nbytes_read);
+                                memcpy(&(*msg.get())[already_read], &buffer[0], nbytes_read);
                             }
                             else if( nbytes_read == 0 )
                                 break;
@@ -259,8 +280,8 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
 
             if( !m_egress.size())
             {
-                cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket 
-                     << " ready for sending" << endl;
+                //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket 
+                //     << " ready for sending" << endl;
             }
             else
             {
@@ -270,10 +291,10 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                     auto session = msg->getSessionHandler();
                     if( session )
                     {
-                        cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
-                            << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
-                            << ":" << ntohs(session->getPeerAddress().sin_port)
-                            << ", " << msg->size() << " Bytes requested to be sent" << endl;
+                        //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
+                        //    << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
+                        //    << ":" << ntohs(session->getPeerAddress().sin_port)
+                        //    << ", " << msg->size() << " Bytes requested to be sent" << endl;
 
                         ssize_t nbytes_sent = 0, already_sent = 0;
                         if( m_protocol == IPPROTO_UDP )
@@ -284,7 +305,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             size_t send_size =  msg->size();
                             assert(send_size <= sizeof(buffer));
                             
-                            memcpy(buffer, msg.get()[0], send_size);
+                            memcpy(buffer, &(*msg.get())[0], send_size);
                             
                             struct sockaddr_in peer_address = session->getPeerAddress();
                             socklen_t len = sizeof(peer_address);
@@ -296,7 +317,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             while( already_sent < msg->size() )
                             {
                                 size_t send_size =  min(msg->size() - already_sent, sizeof(buffer));
-                                memcpy(buffer, msg.get()[already_sent], send_size);
+                                memcpy(buffer, &(*msg.get())[already_sent], send_size);
 
                                 nbytes_sent = send(m_socket, buffer, send_size, MSG_NOSIGNAL);
 
@@ -312,10 +333,10 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             }
                         }
 
-                        cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
-                            << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
-                            << ":" << ntohs(session->getPeerAddress().sin_port)
-                            << ", " << already_sent << " Bytes sent" << endl;
+                        //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
+                        //    << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
+                        //    << ":" << ntohs(session->getPeerAddress().sin_port)
+                        //    << ", " << already_sent << " Bytes sent" << endl;
                     }
                 }
             }

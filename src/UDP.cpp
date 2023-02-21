@@ -14,17 +14,10 @@ UDPSessionHandler::UDPSessionHandler(const shared_ptr<const SocketHandler> socke
 
 void UDPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
-    auto msg = dynamic_pointer_cast<const UDPSocketMessage>(msg_in);
-    auto handler = dynamic_pointer_cast<const UDPSocketHandler>(getSocketHandler());
+    SessionHandler::onNewMessage(msg_in);
 
-    if(msg && handler)
-    {
-        cout << dec << "@ " << (handler->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << handler->getSocket()
-            << " => @" << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
-            << ", " << msg->size() << " Bytes received" << endl;
-
-        const_pointer_cast<UDPSocketHandler>(handler)->sendMsg(msg);     // test echo
-    }
+    // test echo
+    sendMessage(msg_in);
 }
 
 //----------------------------------------------------------------------------------------------------------------

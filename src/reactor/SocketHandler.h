@@ -166,6 +166,8 @@ class SocketMessage
         //For reallocating space to the msg content
         virtual void resize(const uint32_t size) = 0;
 
+        virtual void print() const = 0;
+
     private:
         const weak_ptr<const SessionHandler> m_session_handler;
 };
@@ -178,7 +180,8 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
         const shared_ptr<const SocketHandler> getSocketHandler() const;
         inline const struct sockaddr_in &getPeerAddress() const { return m_peer_address; }
 
-        virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in) = 0;
+        virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
+        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out);
 
         virtual void close() const;
 

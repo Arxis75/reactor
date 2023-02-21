@@ -14,17 +14,10 @@ TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socke
 
 void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
-    auto msg = dynamic_pointer_cast<const TCPSocketMessage>(msg_in);
-    auto handler = dynamic_pointer_cast<const TCPSocketHandler>(getSocketHandler());
+    SessionHandler::onNewMessage(msg_in);
 
-    if(msg && handler)
-    {
-        cout << dec << "@ " << (handler->getProtocol() == IPPROTO_TCP ? "TCP" : "TCP") << " socket = " << handler->getSocket()
-            << " => @" << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
-            << ", " << msg->size() << " Bytes received" << endl;
-
-        const_pointer_cast<TCPSocketHandler>(handler)->sendMsg(msg);     // test echo
-    }
+    // test echo
+    sendMessage(msg_in);
 }
 
 //----------------------------------------------------------------------------------------------------------------
