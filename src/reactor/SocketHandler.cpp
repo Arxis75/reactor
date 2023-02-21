@@ -40,22 +40,30 @@ const std::shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() co
 
 void SessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
-    if( auto server = getSocketHandler() )
+    if( auto socket = getSocketHandler() )
     {
         
-        cout << (server->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) << ": RECEIVING " << msg_in->size() << " Bytes FROM @" << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port) << endl;
+        cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) 
+             << ": RECEIVING " << msg_in->size() << " Bytes FROM @" 
+             << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
+             << " (socket = " << socket->getSocket() << ")"
+             << endl;
         msg_in->print();
     }
 }
 
 void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
 {
-    if( auto server = getSocketHandler() )
+    if( auto socket = getSocketHandler() )
     {
-        cout << (server->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) << ": SENDING " << msg_out->size() << " Bytes TO @" << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port) << endl;
+        cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" )
+             << ": SENDING " << msg_out->size() << " Bytes TO @" 
+             << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
+             << " (socket = " << socket->getSocket() << ")"
+             << endl;
         msg_out->print();
 
-        const_pointer_cast<SocketHandler>(server)->sendMsg(msg_out);
+        const_pointer_cast<SocketHandler>(socket)->sendMsg(msg_out);
     }
 }
 
@@ -376,7 +384,7 @@ void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg)
 
 void SocketHandler::stop()
 {
-    cout << "Socket " << m_socket << " is closing." << endl;
+    cout <<(getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) << ": Socket " << m_socket << " is closing." << endl;
 
     // The removal from Initiation_Dispatcher detroys:
     // - the SessionHandler(s),
