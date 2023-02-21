@@ -52,7 +52,7 @@ void SessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
     }
 }
 
-void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
+void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) const
 {
     if( auto socket = getSocketHandler() )
     {

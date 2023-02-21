@@ -181,7 +181,7 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
         inline const struct sockaddr_in &getPeerAddress() const { return m_peer_address; }
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
-        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out);
+        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const ;
 
         virtual void close() const;
 
