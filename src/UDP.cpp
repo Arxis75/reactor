@@ -8,8 +8,8 @@ using std::dec;
 using std::endl;
 using std::dynamic_pointer_cast;
 
-UDPSessionHandler::UDPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
-    : SessionHandler(socket_handler, peer_address)
+UDPSessionHandler::UDPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
+    : SessionHandler(socket_handler, peer_address, peer_id)
 { }
 
 void UDPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
@@ -35,9 +35,9 @@ const shared_ptr<SocketHandler> UDPSocketHandler::makeSocketHandler(const int so
     return make_shared<UDPSocketHandler>(socket, master_handler);
 }
 
-const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
 {
-    return make_shared<UDPSessionHandler>(socket_handler, peer_address);
+    return make_shared<UDPSessionHandler>(socket_handler, peer_address, peer_id);
 }
 
 const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const
@@ -45,38 +45,17 @@ const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared
     return make_shared<UDPSocketMessage>(session_handler);
 }
 
-const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared_ptr<const SocketMessage> msg) const
+const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer) const
 {
-    return make_shared<UDPSocketMessage>(std::dynamic_pointer_cast<const UDPSocketMessage>(msg));
+    return make_shared<UDPSocketMessage>(buffer);
 }
 
 //------------------------------------------------------------------------------------------------------
 
-UDPSocketMessage::UDPSocketMessage(const shared_ptr<const UDPSocketMessage> msg)
-    : SocketMessage(msg->getSessionHandler())
-    , m_vect(msg->m_vect)
+UDPSocketMessage::UDPSocketMessage(const vector<uint8_t> buffer)
+    : SocketMessage(buffer)
 { }
 
 UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
 { }
-
-uint64_t UDPSocketMessage::size() const
-{
-    return m_vect.size();
-}
-
-UDPSocketMessage::operator const uint8_t*() const
-{
-    return m_vect.data();
-}
-
-UDPSocketMessage::operator uint8_t*()
-{
-    return m_vect.data();
-}
-
-void UDPSocketMessage::resize(const uint32_t size)
-{
-    m_vect.resize(size, 0);
-}

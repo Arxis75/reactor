@@ -8,8 +8,8 @@ using std::dec;
 using std::endl;
 using std::dynamic_pointer_cast;
 
-TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
-    : SessionHandler(socket_handler, peer_address)
+TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
+    : SessionHandler(socket_handler, peer_address, peer_id)
 { }
 
 void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
@@ -35,9 +35,9 @@ const shared_ptr<SocketHandler> TCPSocketHandler::makeSocketHandler(const int so
     return make_shared<TCPSocketHandler>(socket, master_handler);
 }
 
-const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
 {
-    return make_shared<TCPSessionHandler>(socket_handler, peer_address);
+    return make_shared<TCPSessionHandler>(socket_handler, peer_address, peer_id);
 }
 
 const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const
@@ -45,38 +45,17 @@ const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared
     return make_shared<TCPSocketMessage>(session_handler);
 }
 
-const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SocketMessage> msg) const
+const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer) const
 {
-    return make_shared<TCPSocketMessage>(std::dynamic_pointer_cast<const TCPSocketMessage>(msg));
+    return make_shared<TCPSocketMessage>(buffer);
 }
 
 //------------------------------------------------------------------------------------------------------
 
-TCPSocketMessage::TCPSocketMessage(const shared_ptr<const TCPSocketMessage> msg)
-    : SocketMessage(msg->getSessionHandler())
-    , m_vect(msg->m_vect)
+TCPSocketMessage::TCPSocketMessage(const vector<uint8_t> buffer)
+    : SocketMessage(buffer)
 { }
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
 { }
-
-uint64_t TCPSocketMessage::size() const
-{
-    return m_vect.size();
-}
-
-TCPSocketMessage::operator const uint8_t*() const
-{
-    return m_vect.data();
-}
-
-TCPSocketMessage::operator uint8_t*()
-{
-    return m_vect.data();
-}
-
-void TCPSocketMessage::resize(const uint32_t size)
-{
-    m_vect.resize(size, 0);
-}

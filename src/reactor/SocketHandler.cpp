@@ -17,23 +17,41 @@ using std::min;
 
 //-----------------------------------------------------------------------------------------------------------
 
+SocketMessage::SocketMessage(const vector<uint8_t> buffer)
+    : m_session_handler(shared_ptr<const SessionHandler>(nullptr))
+    , m_vect(buffer)
+{ }
+
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : m_session_handler(session_handler)
 { }
 
-const shared_ptr<const SessionHandler> SocketMessage::getSessionHandler() const
-{
-    return m_session_handler.lock();
-}
-
 //-----------------------------------------------------------------------------------------------------------
 
-SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
     : m_socket_handler(socket_handler)
     , m_peer_address(peer_address)
+    , m_peer_id(peer_id)
+    , m_key(makeKey(peer_address, peer_id))
 { }
 
-const std::shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() const
+const vector<uint8_t> SessionHandler::makeKey(const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
+{
+    vector<uint8_t> key;
+    key.resize(peer_id.size() + 6);
+    if( peer_id.size() )
+        memcpy(&key[0], &peer_id[0], peer_id.size());
+    memcpy(&key[peer_id.size()], &peer_address.sin_addr.s_addr, 4);
+    memcpy(&key[peer_id.size() + 4], &peer_address.sin_port, 2);
+    return key;
+}
+
+const uint64_t SessionHandler::makeKey(const struct sockaddr_in &peer_addr)
+{
+    return (peer_addr.sin_addr.s_addr << 16) + peer_addr.sin_port;
+}
+
+const shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() const
 {
     return m_socket_handler.lock();
 }
@@ -67,7 +85,7 @@ void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) 
 void SessionHandler::close() const
 {
     if( auto handler = getSocketHandler() )
-        const_pointer_cast<SocketHandler>(handler)->removeSessionHandler(getPeerAddress());
+        const_pointer_cast<SocketHandler>(handler)->removeSessionHandler(getKey());
 }
 
 //-----------------------------------------------------------------------------------------------------------
@@ -211,18 +229,18 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             if( !isBlacklisted(peer_address) )
                             {
                                 // We have a new udp datagram:
-                                // - create a new message and possibly a new session
-                                auto msg = makeSocketMessageWithSession(peer_address);
+                                // - create a new container to parse it
+                                vector<uint8_t> msg;
                                 // - allocates the proper size to the msg container
-                                msg->resize(nbytes_read);
+                                msg.resize(nbytes_read);
                                 // - copy the buffer into the msg container
-                                memcpy(&(*msg.get())[0], &buffer[0], nbytes_read);
+                                memcpy(&msg[0], &buffer[0], nbytes_read);
 
                                 //Dispatch the datagram to the session
                                 // We make the assumption here that the read buffer size is big
                                 // enough to contain the largest message, i.e. 1 datagram = 1 msg
-                                // Making a copy invokes the protocol-level constructor
-                                dispatchMessage(makeSocketMessage(msg));
+                                // The following call invokes the protocol-level constructors
+                                dispatchMessage(makeMessageWithSession(msg, peer_address));
                             }
                         }
                         else if( nbytes_read == 0 )
@@ -242,7 +260,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
 
                     if( !isBlacklisted(peer_address) )
                     {
-                        auto msg = makeSocketMessageWithSession(peer_address);
+                        vector<uint8_t> msg;
 
                         while( true )
                         {
@@ -251,9 +269,9 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             if( nbytes_read > 0)
                             {   
                                 //pushes more packets of the same msg
-                                uint32_t already_read = msg->size();
-                                msg->resize(already_read + nbytes_read);
-                                memcpy(&(*msg.get())[already_read], &buffer[0], nbytes_read);
+                                uint32_t already_read = msg.size();
+                                msg.resize(already_read + nbytes_read);
+                                memcpy(&msg[already_read], &buffer[0], nbytes_read);
                             }
                             else if( nbytes_read == 0 )
                                 break;
@@ -266,8 +284,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         }
 
                         // Dispatch the message to the session
-                        // Making a copy invokes the protocol-level constructor
-                        dispatchMessage(makeSocketMessage(msg));
+                        dispatchMessage(makeMessageWithSession(msg, peer_address));
                     }
                 }
             }
@@ -360,12 +377,17 @@ void SocketHandler::start()
     Initiation_Dispatcher::GetInstance().registerSocketHandler(shared_from_this(), ev);
 }
 
-const shared_ptr<SocketMessage> SocketHandler::makeSocketMessageWithSession(const struct sockaddr_in &peer)
+const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
 {
-    auto session = getSessionHandler(peer);
+    // This call will invoke the protocol-level constructor
+    shared_ptr<SocketMessage> msg = makeSocketMessage(buffer);
+    vector<uint8_t> peer_id = msg->getPeerID();
+    auto session = getSessionHandler(SessionHandler::makeKey(peer_addr, peer_id));
     if(!session)
-        session = registerSessionHandler(peer);
-    return makeSocketMessage(session);
+        // This call will invoke the protocol-level constructor
+        session = registerSessionHandler(peer_addr, peer_id);
+    msg->attach(session);
+    return msg;
 }
 
 void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg)
@@ -388,28 +410,20 @@ void SocketHandler::stop()
 
 //----------------------------------- MASTER SOCKET OPERATIONS --------------------------------------------
 
-const uint64_t SocketHandler::makeKeyFromSockAddr(const struct sockaddr_in &addr) const
-{
-    return (addr.sin_addr.s_addr << 16) + addr.sin_port;
-}
-
 // Register an Session_Handler of a particular peer
-const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &addr)
+const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id)
 {
-    uint64_t key = makeKeyFromSockAddr(addr);
-    shared_ptr<SessionHandler> session_handler = makeSessionHandler(shared_from_this(), addr);
-    // It is important to maintain an existing Session(IP:Port) context
-    // This is why map::insert is used here (insertion only if new key)
-    auto inserted = m_session_handler_list.insert(make_pair(key, session_handler));
+    // This call will invoke the protocol-level constructor
+    shared_ptr<SessionHandler> session_handler = makeSessionHandler(shared_from_this(), peer_addr, peer_id);
+    auto inserted = m_session_handler_list.insert(make_pair(session_handler->getKey(), session_handler));
     return session_handler;
 
 }
 
 // Gets the session handler for a particular peer
-const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const struct sockaddr_in &addr) const
+const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const vector<uint8_t> &session_key) const
 {
-    uint64_t key = makeKeyFromSockAddr(addr);
-    auto it = m_session_handler_list.find(key);
+    auto it = m_session_handler_list.find(session_key);
     if( it != m_session_handler_list.end() )
         return it->second;
     else
@@ -417,10 +431,9 @@ const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const st
 }
 
 // Remove an Session_Handler of a particular peer.
-void SocketHandler::removeSessionHandler(const struct sockaddr_in &addr)
+void SocketHandler::removeSessionHandler(const vector<uint8_t> &session_key)
 {
-    uint64_t key = makeKeyFromSockAddr(addr);
-    m_session_handler_list.erase(key);
+    m_session_handler_list.erase(session_key);
     
     if( m_protocol == IPPROTO_TCP && !m_is_listening_socket)
         // Destruct the connected TCP SocketHandler
@@ -434,19 +447,20 @@ size_t SocketHandler::getSessionsCount() const
 
 void SocketHandler::blacklist(const bool status, const struct sockaddr_in &addr)
 {    
+    uint64_t key = SessionHandler::makeKey(addr);
     if( status )
     {
         // Set the blacklist status
         if( !isBlacklisted(addr) )
             // Adds to the blacklist
-            m_blacklisted_peers.push_back(makeKeyFromSockAddr(addr));
+            m_blacklisted_peers.push_back(key);
     }
     else
         // Remove the blacklist status
-        m_blacklisted_peers.erase(remove(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)), m_blacklisted_peers.end());
+        m_blacklisted_peers.erase(remove(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), key), m_blacklisted_peers.end());
 }
 
 bool SocketHandler::isBlacklisted(const struct sockaddr_in &addr) const
 {
-    return find(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), makeKeyFromSockAddr(addr)) != m_blacklisted_peers.end();
+    return find(m_blacklisted_peers.begin(), m_blacklisted_peers.end(), SessionHandler::makeKey(addr)) != m_blacklisted_peers.end();
 }
