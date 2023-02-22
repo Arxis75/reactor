@@ -66,8 +66,8 @@ void SessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
     if( auto socket = getSocketHandler() )
     {
         cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) 
-             << ": RECEIVING " << msg_in->size() << " Bytes FROM @" 
-             << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
+             << ": RECEIVING " << dec << msg_in->size() << " Bytes FROM @" 
+             << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
              << " (socket = " << socket->getSocket() << ")"
              << endl;
     }
@@ -78,8 +78,8 @@ void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) 
     if( auto socket = getSocketHandler() )
     {
         cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" )
-             << ": SENDING " << msg_out->size() << " Bytes TO @" 
-             << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
+             << ": SENDING " << dec << msg_out->size() << " Bytes TO @" 
+             << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
              << " (socket = " << socket->getSocket() << ")"
              << endl;
 
@@ -422,7 +422,6 @@ const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(con
     shared_ptr<SessionHandler> session_handler = makeSessionHandler(shared_from_this(), peer_addr, peer_id);
     auto inserted = m_session_handler_list.insert(make_pair(session_handler->getKey(), session_handler));
     return session_handler;
-
 }
 
 // Gets the session handler for a particular peer
