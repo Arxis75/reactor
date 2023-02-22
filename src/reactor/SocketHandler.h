@@ -155,10 +155,11 @@ class SocketMessage
         //Retrieve the peer ID from the message content:
         virtual inline const vector<uint8_t> getPeerID() const = 0;
         
-        virtual inline uint64_t size() const { return m_vect.size(); }
-        virtual operator const uint8_t*() const { return m_vect.data(); }
-        virtual operator uint8_t*() { return m_vect.data(); }
-        virtual inline void resize(uint32_t value) { m_vect.resize(value, 0); }
+        inline uint64_t size() const { return m_vect.size(); }
+        inline operator const uint8_t*() const { return m_vect.data(); }
+        inline operator uint8_t*() { return m_vect.data(); }
+        inline void resize(uint32_t value) { m_vect.resize(value, 0); }
+        inline void push_back(const uint8_t value) { m_vect.push_back(value); };
 
         virtual void print() const = 0;
     
