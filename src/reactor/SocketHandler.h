@@ -120,7 +120,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         int acceptConnection() const;
         
         const map<vector<uint8_t>, shared_ptr<const SessionHandler>> &getSessionList() const { return m_session_handler_list; }
-        
+
         const shared_ptr<SocketMessage> makeMessageWithSession(const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr);
 
         //By default, dispatch to the message session
@@ -150,7 +150,11 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 class SocketMessage
 {
     public:
+        //Copy Constructor
+        SocketMessage(const shared_ptr<const SocketMessage> msg);
+        //Raw msg constructor
         SocketMessage(const vector<uint8_t> buffer);
+        //session-embedded empty msg
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
         const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }

@@ -17,6 +17,11 @@ using std::min;
 
 //-----------------------------------------------------------------------------------------------------------
 
+SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
+    : m_session_handler(msg->m_session_handler)
+    , m_vect(msg->m_vect)
+{ }
+
 SocketMessage::SocketMessage(const vector<uint8_t> buffer)
     : m_session_handler(shared_ptr<const SessionHandler>(nullptr))
     , m_vect(buffer)
