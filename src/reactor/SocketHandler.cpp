@@ -42,13 +42,11 @@ void SessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
     if( auto socket = getSocketHandler() )
     {
-        
         cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) 
              << ": RECEIVING " << msg_in->size() << " Bytes FROM @" 
              << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
              << " (socket = " << socket->getSocket() << ")"
              << endl;
-        msg_in->print();
     }
 }
 
@@ -61,7 +59,6 @@ void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) 
              << dec << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
              << " (socket = " << socket->getSocket() << ")"
              << endl;
-        msg_out->print();
 
         const_pointer_cast<SocketHandler>(socket)->sendMsg(msg_out);
     }
