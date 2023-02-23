@@ -11,6 +11,11 @@
 using std::string;
 using std::vector;
 
+#include <iostream>
+using std::cout;
+using std::hex;
+using std::endl;
+
 using std::lock_guard;
 using std::unique_lock;
 using std::mutex;
@@ -167,7 +172,7 @@ class SocketMessage
         inline void resize(uint32_t value) { m_vect.resize(value, 0); }
         inline void push_back(const uint8_t value) { m_vect.push_back(value); };
 
-        virtual void print() const = 0;
+        virtual void print() const{ for(auto const& value : m_vect) cout << hex << value << endl; };
     
     protected:
         friend class SocketHandler;

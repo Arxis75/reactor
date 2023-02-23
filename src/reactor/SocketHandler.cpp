@@ -53,7 +53,10 @@ const vector<uint8_t> SessionHandler::makeKey(const struct sockaddr_in &peer_add
 
 const uint64_t SessionHandler::makeKey(const struct sockaddr_in &peer_addr)
 {
-    return (peer_addr.sin_addr.s_addr << 16) + peer_addr.sin_port;
+    uint64_t ret = peer_addr.sin_addr.s_addr;
+    ret <<= 16;
+    ret += peer_addr.sin_port;
+    return ret;
 }
 
 const shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() const
