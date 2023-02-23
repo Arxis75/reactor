@@ -248,7 +248,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 // - allocates the proper size to the msg container
                                 msg.resize(nbytes_read);
                                 // - copy the buffer into the msg container
-                                memcpy(&msg.data()[0], &buffer[0], nbytes_read);
+                                memcpy(&msg[0], &buffer[0], nbytes_read);
 
                                 //Dispatch the datagram to the session
                                 // We make the assumption here that the read buffer size is big
@@ -285,7 +285,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 //pushes more packets of the same msg
                                 uint32_t already_read = msg.size();
                                 msg.resize(already_read + nbytes_read);
-                                memcpy(&msg.data()[already_read], &buffer[0], nbytes_read);
+                                memcpy(&msg[already_read], &buffer[0], nbytes_read);
                             }
                             else if( nbytes_read == 0 )
                                 break;
