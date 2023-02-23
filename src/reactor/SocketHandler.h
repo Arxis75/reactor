@@ -172,7 +172,7 @@ class SocketMessage
         inline void resize(uint32_t value) { m_vect.resize(value, 0); }
         inline void push_back(const uint8_t value) { m_vect.push_back(value); };
 
-        virtual void print() const{ for(auto const& value : m_vect) cout << hex << value << endl; };
+        virtual void print() const{ for(auto const &value : m_vect) cout << hex << value; cout << endl; };
     
     protected:
         friend class SocketHandler;
