@@ -7,6 +7,7 @@
 #include <string.h>         //memset
 #include <assert.h>
 #include <iostream>         //cout, EXIT_FAILURE, NULL
+#include <iomanip>
 #include <algorithm>
 
 using std::cout;
@@ -31,6 +32,11 @@ SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_hand
     : m_session_handler(session_handler)
 { }
 
+void SocketMessage::print() const
+{
+    //Print the raw content of the vector
+    for(auto const &value : m_vect) cout << hex << std::setfill('0') << std::setw(2) << int(value); cout << endl;
+}
 //-----------------------------------------------------------------------------------------------------------
 
 SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
