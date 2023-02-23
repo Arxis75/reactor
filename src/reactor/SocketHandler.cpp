@@ -248,7 +248,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 // - allocates the proper size to the msg container
                                 msg.resize(nbytes_read);
                                 // - copy the buffer into the msg container
-                                memcpy(&msg[0], &buffer[0], nbytes_read);
+                                memcpy(&msg.data()[0], &buffer[0], nbytes_read);
 
                                 //Dispatch the datagram to the session
                                 // We make the assumption here that the read buffer size is big
@@ -285,7 +285,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 //pushes more packets of the same msg
                                 uint32_t already_read = msg.size();
                                 msg.resize(already_read + nbytes_read);
-                                memcpy(&msg[already_read], &buffer[0], nbytes_read);
+                                memcpy(&msg.data()[already_read], &buffer[0], nbytes_read);
                             }
                             else if( nbytes_read == 0 )
                                 break;
@@ -337,7 +337,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             size_t send_size =  msg->size();
                             assert(send_size <= sizeof(buffer));
                             
-                            memcpy(buffer, &(*msg.get())[0], send_size);
+                            memcpy(&buffer[0], msg.get()[0], send_size);
                             
                             struct sockaddr_in peer_address = session->getPeerAddress();
                             socklen_t len = sizeof(peer_address);
@@ -349,7 +349,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                             while( already_sent < msg->size() )
                             {
                                 size_t send_size =  min(msg->size() - already_sent, sizeof(buffer));
-                                memcpy(buffer, &(*msg.get())[already_sent], send_size);
+                                memcpy(&buffer[0], msg.get()[already_sent], send_size);
 
                                 nbytes_sent = send(m_socket, buffer, send_size, MSG_NOSIGNAL);
 
@@ -398,6 +398,7 @@ const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vect
     shared_ptr<SocketMessage> msg = makeSocketMessage(buffer);
     vector<uint8_t> peer_id = msg->getPeerID();
     auto session = getSessionHandler(SessionHandler::makeKey(peer_addr, peer_id));
+    //If no existing session, check if this type of message can bootstrap a new session
     if( !session && msg->isSessionBootstrapper() )
     {
         // This call will invoke the protocol-level constructor
