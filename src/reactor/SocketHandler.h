@@ -158,7 +158,9 @@ class SocketMessage
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
         const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
-        //Retrieve the peer ID from the message content:
+        // Message attribute allowing session creation on receive
+        virtual inline bool isSessionBootstrapper() const { return true; }
+        // Retrieve the peer ID from the message content:
         virtual inline const vector<uint8_t> getPeerID() const = 0;
         
         inline uint64_t size() const { return m_vect.size(); }

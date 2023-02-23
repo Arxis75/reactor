@@ -397,7 +397,7 @@ const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vect
     shared_ptr<SocketMessage> msg = makeSocketMessage(buffer);
     vector<uint8_t> peer_id = msg->getPeerID();
     auto session = getSessionHandler(SessionHandler::makeKey(peer_addr, peer_id));
-    if(!session)
+    if( !session && msg->isSessionBootstrapper() )
         // This call will invoke the protocol-level constructor
         session = registerSessionHandler(peer_addr, peer_id);
     msg->attach(session);
