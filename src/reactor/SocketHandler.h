@@ -134,7 +134,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const = 0;
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) = 0;
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
-        virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> buffer) const = 0;
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> &buffer) const = 0;
 
     private:
         int m_socket;
@@ -172,7 +172,7 @@ class SocketMessage
         inline void resize(uint32_t value) { m_vect.resize(value, 0); }
         inline void push_back(const uint8_t value) { m_vect.push_back(value); };
 
-        virtual void print() const{ for(auto const &value : m_vect) cout << hex << value; cout << endl; };
+        virtual void print() const { for(auto const &value : m_vect) cout << hex << value; cout << endl; }
     
     protected:
         friend class SocketHandler;

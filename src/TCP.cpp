@@ -45,7 +45,7 @@ const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared
     return make_shared<TCPSocketMessage>(session_handler);
 }
 
-const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer) const
+const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector<uint8_t> &buffer) const
 {
     return make_shared<TCPSocketMessage>(buffer);
 }
