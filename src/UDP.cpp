@@ -45,7 +45,7 @@ const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared
     return make_shared<UDPSocketMessage>(session_handler);
 }
 
-const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer) const
+const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const vector<uint8_t> &buffer) const
 {
     return make_shared<UDPSocketMessage>(buffer);
 }
