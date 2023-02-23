@@ -393,21 +393,28 @@ void SocketHandler::start()
 
 const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
 {
+    auto retval = shared_ptr<SocketMessage>(nullptr);
     // This call will invoke the protocol-level constructor
     shared_ptr<SocketMessage> msg = makeSocketMessage(buffer);
     vector<uint8_t> peer_id = msg->getPeerID();
     auto session = getSessionHandler(SessionHandler::makeKey(peer_addr, peer_id));
     if( !session && msg->isSessionBootstrapper() )
+    {
         // This call will invoke the protocol-level constructor
         session = registerSessionHandler(peer_addr, peer_id);
-    msg->attach(session);
+    }
+    if( session )
+    {
+        msg->attach(session);
+        retval = msg;
+    }
     return msg;
 }
 
 void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg)
 {
     //By default, dispatch the message to the message's session handler
-    if( auto session = msg->getSessionHandler() )
+    if( msg ; auto session = msg->getSessionHandler() )
         const_pointer_cast<SessionHandler>(session)->onNewMessage(msg);
 }
 
