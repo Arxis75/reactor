@@ -147,7 +147,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         SafeQueue<shared_ptr<const SocketMessage>> m_egress;   // egress list stored at connected socket(tp) or master socket(udp)
 };
 
-class SocketMessage
+class SocketMessage: public std::enable_shared_from_this<SocketMessage>
 {
     public:
         //Copy Constructor
