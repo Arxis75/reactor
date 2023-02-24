@@ -170,12 +170,14 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         // Retrieve the peer ID from the message content:
         virtual inline const vector<uint8_t> getPeerID() const = 0;
         
+        inline void clear() { m_vect.clear(); }
         inline uint64_t size() const { return m_vect.size(); }
         inline operator const vector<uint8_t>&() const { return m_vect; }
         inline operator const uint8_t*() const { return m_vect.data(); }
         inline operator uint8_t*() { return m_vect.data(); }
         inline void resize(uint32_t value) { m_vect.resize(value, 0); }
-        inline void push_back(const uint8_t value) { m_vect.push_back(value); };
+        inline void push_back(const uint8_t value) { m_vect.push_back(value); }
+        inline void push_back(const vector<uint8_t> v) { m_vect.insert(m_vect.end(), v.begin(), v.end());; }
 
         virtual void print() const;
     
