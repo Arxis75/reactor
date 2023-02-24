@@ -468,7 +468,6 @@ size_t SocketHandler::getSessionsCount() const
 
 bool SocketHandler::isInternalAddress(const struct sockaddr_in &addr)
 {
-    bool retval = true;
     uint32_t address = ntohl(addr.sin_addr.s_addr);
     uint16_t port = ntohs(addr.sin_port);
 
