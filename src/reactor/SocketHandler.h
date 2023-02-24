@@ -184,6 +184,8 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         void attach(const shared_ptr<const SessionHandler> session_handler) { m_session_handler = session_handler; }
 
     private:
+        //The Peer ID is a member of the protocol-level msg class
+        //It is initialized at protocol-level.
         weak_ptr<const SessionHandler> m_session_handler;
         //The message content:
         vector<uint8_t> m_vect;
