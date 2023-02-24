@@ -120,6 +120,8 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         // Constructs a basic unique key from IP:Port
         const uint64_t makeAddressKey(const struct sockaddr_in &peer_addr) const;
 
+        static bool isInternalAddress(const struct sockaddr_in &addr);
+
     protected:
         int bindSocket(const uint16_t port);
         int acceptConnection() const;

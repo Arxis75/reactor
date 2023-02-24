@@ -466,6 +466,23 @@ size_t SocketHandler::getSessionsCount() const
     return m_session_handler_list.size();
 }
 
+static bool SocketHandler::isInternalAddress(const struct sockaddr_in &addr)
+{
+    bool retval = true;
+    uint32_t address = ntohl(addr.sin_addr.s_addr);
+    uint16_t port = ntohs(addr.sin_port);
+
+    uint8_t prefix_8 = ((address >> 24) & 0xFF);
+    uint16_t prefix_12 = ((address >> 20) & 0xFFF);
+    uint16_t prefix_16 = ((address >> 16) & 0xFFFF);
+
+    // 10.0.0.0     -   10.255.255.255  (10/8 prefix)
+    // 127.0.0.0    -   127.255.255.255  (127/8 prefix)
+    // 172.16.0.0   -   172.31.255.255  (172.16/12 prefix)
+    // 192.168.0.0  -   192.168.255.255 (192.168/16 prefix)
+    return port < 1024 || prefix_8 == 10 || prefix_8 == 127 || prefix_12 == 0xAC1 || prefix_16 == 0xC0A8;
+}
+
 void SocketHandler::blacklist(const bool status, const struct sockaddr_in &addr)
 {    
     uint64_t key = makeAddressKey(addr);
