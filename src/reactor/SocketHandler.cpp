@@ -479,7 +479,7 @@ bool SocketHandler::isInternalAddress(const struct sockaddr_in &addr)
     // 127.0.0.0    -   127.255.255.255  (127/8 prefix)
     // 172.16.0.0   -   172.31.255.255  (172.16/12 prefix)
     // 192.168.0.0  -   192.168.255.255 (192.168/16 prefix)
-    return port < 1024 || prefix_8 == 10 || prefix_8 == 127 || prefix_12 == 0xAC1 || prefix_16 == 0xC0A8;
+    return address == 0 || port < 1024 || prefix_8 == 10 || prefix_8 == 127 || prefix_12 == 0xAC1 || prefix_16 == 0xC0A8;
 }
 
 void SocketHandler::blacklist(const bool status, const struct sockaddr_in &addr)
