@@ -50,12 +50,24 @@ const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector
     return make_shared<TCPSocketMessage>(buffer);
 }
 
+const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) const
+{
+    vector<uint8_t> key;
+    key.resize(6);
+    memcpy(&key[peer_id.size()], &peer_address.sin_addr.s_addr, 4);
+    memcpy(&key[peer_id.size() + 4], &peer_address.sin_port, 2);
+    return key;
+}
+
 //------------------------------------------------------------------------------------------------------
 
 TCPSocketMessage::TCPSocketMessage(const vector<uint8_t> buffer)
     : SocketMessage(buffer)
+    , m_ID({{0}})
 { }
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
+    , m_ID(session_handler->getPeerID())
+
 { }

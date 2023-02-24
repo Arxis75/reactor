@@ -11,11 +11,11 @@ class TCPSocketMessage: public SocketMessage
         TCPSocketMessage(const vector<uint8_t> buffer);
         TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
-        virtual inline const vector<uint8_t> getPeerID() const { return {{0}}; }
+        virtual inline const vector<uint8_t> getPeerID() const { return m_ID; }
         virtual inline void print() const {};
     
     private:
-        vector<uint8_t> m_vect;
+        const vector<uint8_t> m_ID;
 };
 
 class TCPSessionHandler: public SessionHandler
@@ -31,6 +31,8 @@ class TCPSocketHandler: public SocketHandler
     public:
         TCPSocketHandler(const uint16_t binding_port);
         TCPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
+
+        virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id) const;
 
     protected:
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const;

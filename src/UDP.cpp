@@ -26,15 +26,6 @@ UDPSocketHandler::UDPSocketHandler( const uint16_t binding_port)
     : SocketHandler(binding_port, IPPROTO_UDP, 1374, 1374, 0)
 { }
 
-UDPSocketHandler::UDPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
-    : SocketHandler(socket, master_handler)
-{ /*USELESS TCP INTERFACE*/ }
-
-const shared_ptr<SocketHandler> UDPSocketHandler::makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const
-{ 
-    return make_shared<UDPSocketHandler>(socket, master_handler);
-}
-
 const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
 {
     return make_shared<UDPSessionHandler>(socket_handler, peer_address, peer_id);
@@ -50,12 +41,25 @@ const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const vector
     return make_shared<UDPSocketMessage>(buffer);
 }
 
+const vector<uint8_t> UDPSocketHandler::makeSessionKey(const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) const
+{
+    vector<uint8_t> key;
+    key.resize(peer_id.size() + 6);
+    if (peer_id.size())
+        memcpy(&key[0], &peer_id[0], peer_id.size());
+    memcpy(&key[peer_id.size()], &peer_address.sin_addr.s_addr, 4);
+    memcpy(&key[peer_id.size() + 4], &peer_address.sin_port, 2);
+    return key;
+}
+
 //------------------------------------------------------------------------------------------------------
 
 UDPSocketMessage::UDPSocketMessage(const vector<uint8_t> buffer)
     : SocketMessage(buffer)
+    , m_ID({{0}})
 { }
 
 UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
+    , m_ID(session_handler->getPeerID())
 { }

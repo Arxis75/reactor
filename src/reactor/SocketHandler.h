@@ -105,15 +105,20 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 
         // Registers a session handler for a particular peer
         const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id);
+        // Constructs a session unique key: peer_id is extracted from the message itself (more selective than just IP:Port)
+        virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id) const = 0;
         // Gets the session handler for a particular peer
         const shared_ptr<const SessionHandler> getSessionHandler(const vector<uint8_t> &session_key) const;
         // Gets the current number of living sessions
         size_t getSessionsCount() const;
         // Remove an Event_Handler of a particular peer
-        void removeSessionHandler(const vector<uint8_t> &session_key);
+        void removeSessionHandler(shared_ptr<const SessionHandler> session);
 
         void blacklist(const bool status, const struct sockaddr_in &peer_address);
         bool isBlacklisted(const struct sockaddr_in &peer_address) const;
+
+        // Constructs a basic unique key from IP:Port
+        const uint64_t makeAddressKey(const struct sockaddr_in &peer_addr) const;
 
     protected:
         int bindSocket(const uint16_t port);
@@ -158,12 +163,15 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
         const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
+        
         // Message attribute allowing session creation on receive
         virtual inline bool isSessionBootstrapper() const { return true; }
+        
         // Retrieve the peer ID from the message content:
         virtual inline const vector<uint8_t> getPeerID() const = 0;
         
         inline uint64_t size() const { return m_vect.size(); }
+        inline operator const vector<uint8_t>&() const { return m_vect; }
         inline operator const uint8_t*() const { return m_vect.data(); }
         inline operator uint8_t*() { return m_vect.data(); }
         inline void resize(uint32_t value) { m_vect.resize(value, 0); }
@@ -177,6 +185,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
 
     private:
         weak_ptr<const SessionHandler> m_session_handler;
+        //The message content:
         vector<uint8_t> m_vect;
 };
 
@@ -187,21 +196,15 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
     
         const shared_ptr<const SocketHandler> getSocketHandler() const;
         inline const struct sockaddr_in &getPeerAddress() const { return m_peer_address; }
-        inline const vector<uint8_t> &getPeerID() const { return m_peer_id; }
-        inline const vector<uint8_t> &getKey() const { return m_key; }
-
+        inline const vector<uint8_t> getPeerID() const { return m_peer_ID; }
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
         virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const ;
 
         virtual void close() const;
-    
-        static const vector<uint8_t> makeKey(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id);
-        static const uint64_t makeKey(const struct sockaddr_in &peer_addr);
 
     private:
         const weak_ptr<const SocketHandler> m_socket_handler;
         const struct sockaddr_in m_peer_address;
-        const vector<uint8_t> m_peer_id;
-        vector<uint8_t> m_key;
+        const vector<uint8_t> m_peer_ID;
 };
