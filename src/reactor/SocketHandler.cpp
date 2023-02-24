@@ -466,7 +466,7 @@ size_t SocketHandler::getSessionsCount() const
     return m_session_handler_list.size();
 }
 
-static bool SocketHandler::isInternalAddress(const struct sockaddr_in &addr)
+bool SocketHandler::isInternalAddress(const struct sockaddr_in &addr)
 {
     bool retval = true;
     uint32_t address = ntohl(addr.sin_addr.s_addr);
