@@ -30,7 +30,7 @@ class UDPSessionHandler: public SessionHandler
 class UDPSocketHandler: public SocketHandler
 {
     public:
-        UDPSocketHandler(const uint16_t binding_port, const string &messaging_id);
+        UDPSocketHandler(const uint16_t binding_port);
 
         virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id) const;
 

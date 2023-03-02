@@ -22,8 +22,8 @@ void UDPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_i
 
 //----------------------------------------------------------------------------------------------------------------
 
-UDPSocketHandler::UDPSocketHandler( const uint16_t binding_port, const string &messaging_id)
-    : SocketHandler(binding_port, IPPROTO_UDP, messaging_id, 1374, 1374, 0)
+UDPSocketHandler::UDPSocketHandler( const uint16_t binding_port)
+    : SocketHandler(binding_port, IPPROTO_UDP, 1374, 1374, 0)
 { }
 
 const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)

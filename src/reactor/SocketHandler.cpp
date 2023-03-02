@@ -21,14 +21,12 @@ using std::min;
 SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
     : m_session_handler(msg->m_session_handler)
     // m_ID is to be built out of the msg content
-    // m_messaging_version is to be built out of the msg content
     , m_vect(msg->m_vect)
 { }
 
 SocketMessage::SocketMessage(const vector<uint8_t> buffer)
     : m_session_handler(shared_ptr<const SessionHandler>(nullptr))
     // m_ID is to be built out of the msg content
-    // m_messaging_version is to be built out of the msg content
     , m_vect(buffer)
 { }
 
@@ -86,23 +84,14 @@ void SessionHandler::close() const
         const_pointer_cast<SocketHandler>(handler)->removeSessionHandler(shared_from_this());
 }
 
-const string SessionHandler::getMessagingID() const
-{
-    string retval = "unknown";
-    if( auto handler = getSocketHandler() )
-        retval = handler->getMessagingID();
-    return retval;
-}
-
 //-----------------------------------------------------------------------------------------------------------
 
-SocketHandler::SocketHandler(const uint16_t binding_port, const int protocol, const string &messaging_id,
+SocketHandler::SocketHandler(const uint16_t binding_port, const int protocol,
                              const int read_buffer_size, const int write_buffer_size,
                              const int tcp_connection_backlog_size)
     : m_socket(0)
     , m_binding_port(binding_port)
     , m_protocol(protocol)
-    , m_messaging_id(messaging_id)
     , m_read_buffer_size(read_buffer_size)
     , m_write_buffer_size(write_buffer_size)
     , m_tcp_connection_backlog_size(tcp_connection_backlog_size)
@@ -118,7 +107,6 @@ SocketHandler::SocketHandler(const int socket, const shared_ptr<const SocketHand
     : m_socket(socket)
     , m_binding_port(master_handler->m_binding_port)
     , m_protocol(master_handler->m_protocol)
-    , m_messaging_id(master_handler->m_messaging_id)
     , m_read_buffer_size(master_handler->m_read_buffer_size)
     , m_write_buffer_size(master_handler->m_write_buffer_size)
     , m_tcp_connection_backlog_size(master_handler->m_tcp_connection_backlog_size)

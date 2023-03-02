@@ -6,10 +6,10 @@
 
 int main(int argc , char *argv[])  
 {   
-    if( shared_ptr<UDPSocketHandler> udp = make_shared<UDPSocketHandler>(SERVER_PORT, "v1.0") )
+    if( shared_ptr<UDPSocketHandler> udp = make_shared<UDPSocketHandler>(SERVER_PORT) )
     {
         udp->start();
-        if( shared_ptr<TCPSocketHandler> tcp = make_shared<TCPSocketHandler>(SERVER_PORT, "v2.0") )
+        if( shared_ptr<TCPSocketHandler> tcp = make_shared<TCPSocketHandler>(SERVER_PORT) )
             tcp->start();
     }
 

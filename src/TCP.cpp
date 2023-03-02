@@ -22,8 +22,8 @@ void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_i
 
 //----------------------------------------------------------------------------------------------------------------
 
-TCPSocketHandler::TCPSocketHandler( const uint16_t binding_port, const string &messaging_id)
-    : SocketHandler(binding_port, IPPROTO_TCP, messaging_id, 4096, 4096, 0)
+TCPSocketHandler::TCPSocketHandler( const uint16_t binding_port)
+    : SocketHandler(binding_port, IPPROTO_TCP, 4096, 4096, 0)
 { }
 
 TCPSocketHandler::TCPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
