@@ -73,7 +73,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
 {
     public:
         // Constructor of a Master socket (TCP or UDP)
-        SocketHandler(const uint16_t binding_port, const int protocol,
+        SocketHandler(const uint16_t binding_port, const int protocol, const string &messaging_id,
                       const int read_buffer_size = 4096, const int write_buffer_size = 4096,
                       const int tcp_connection_backlog_size = 10);
         // Constructor of a TCP connected socket
@@ -97,8 +97,9 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         void sendMsg(const shared_ptr<const SocketMessage> msg) { m_egress.enqueue(msg); }
 
         inline int getSocket() const { return m_socket; };
-        inline const uint16_t getBindingPort() const { return m_binding_port; }
+        inline uint16_t getBindingPort() const { return m_binding_port; }
         inline int getProtocol() const { return m_protocol; };
+        inline const string &getMessagingID() const { return m_messaging_id; };
         inline int getReadBufferSize() const { return m_read_buffer_size; };        
         inline int getWriteBufferSize() const { return m_write_buffer_size; };
         inline int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
@@ -142,6 +143,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         int m_socket;
         const uint16_t m_binding_port;
         const int m_protocol;
+        const string m_messaging_id;
         const int m_read_buffer_size;
         const int m_write_buffer_size;
         const int m_tcp_connection_backlog_size;
@@ -203,6 +205,7 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
         const shared_ptr<const SocketHandler> getSocketHandler() const;
         inline const struct sockaddr_in &getPeerAddress() const { return m_peer_address; }
         inline const vector<uint8_t> getPeerID() const { return m_peer_ID; }
+        virtual const string getMessagingID() const;
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
         virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const ;

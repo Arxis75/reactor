@@ -12,6 +12,7 @@ class UDPSocketMessage: public SocketMessage
         UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
         
         virtual inline const vector<uint8_t> getPeerID() const { return m_ID; }
+
         virtual inline void print() const {};
 
     private:
@@ -29,7 +30,7 @@ class UDPSessionHandler: public SessionHandler
 class UDPSocketHandler: public SocketHandler
 {
     public:
-        UDPSocketHandler(const uint16_t binding_port);
+        UDPSocketHandler(const uint16_t binding_port, const string &messaging_id);
 
         virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id) const;
 

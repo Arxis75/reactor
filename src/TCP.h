@@ -12,6 +12,7 @@ class TCPSocketMessage: public SocketMessage
         TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
         virtual inline const vector<uint8_t> getPeerID() const { return m_ID; }
+
         virtual inline void print() const {};
     
     private:
@@ -29,7 +30,7 @@ class TCPSessionHandler: public SessionHandler
 class TCPSocketHandler: public SocketHandler
 {
     public:
-        TCPSocketHandler(const uint16_t binding_port);
+        TCPSocketHandler(const uint16_t binding_port, const string &messaging_id);
         TCPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler);
 
         virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id) const;
