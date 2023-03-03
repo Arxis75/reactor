@@ -56,10 +56,10 @@ const vector<uint8_t> UDPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 UDPSocketMessage::UDPSocketMessage(const vector<uint8_t> buffer)
     : SocketMessage(buffer)
-    , m_ID({{0}})
+    , m_sender_ID({{0}})
 { }
 
 UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
-    , m_ID(session_handler->getPeerID())
+    , m_sender_ID({{0}})
 { }

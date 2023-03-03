@@ -63,10 +63,10 @@ const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 TCPSocketMessage::TCPSocketMessage(const vector<uint8_t> buffer)
     : SocketMessage(buffer)
-    , m_ID({{0}})
+    , m_sender_ID({{0}})
 { }
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
-    , m_ID(session_handler->getPeerID())
+    , m_sender_ID({{0}})
 { }
