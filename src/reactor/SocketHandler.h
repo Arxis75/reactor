@@ -169,8 +169,10 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         // Message attribute allowing session creation on receive
         virtual inline bool isSessionBootstrapper() const { return true; }
         
-        // Retrieve the peer ID from the message content:
-        virtual inline const vector<uint8_t> getPeerID() const = 0;
+        // Retrieve the sender ID from the message content:
+        // - SenderID = peer ID in case of ingres msg,
+        // - SenderID = host ID in case of egress msg,
+        virtual inline const vector<uint8_t> getSenderID() const = 0;
         
         inline void clear() { m_vect.clear(); }
         inline uint64_t size() const { return m_vect.size(); }

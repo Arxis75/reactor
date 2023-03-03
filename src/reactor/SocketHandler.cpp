@@ -386,10 +386,10 @@ const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vect
     auto retval = shared_ptr<SocketMessage>(nullptr);
     // This call will invoke the protocol-level constructor
     shared_ptr<SocketMessage> msg = makeSocketMessage(buffer);
-    // PeerID is the key that connects an UDP message to the associated session
+    // peer_id is the key that connects an UDP message to the associated session
     // - Empty means invalid message,
     // - can be always {{0}} in connected TCP for example,
-    vector<uint8_t> peer_id = msg->getPeerID();
+    vector<uint8_t> peer_id = msg->getSenderID();
     // Simple filtering: if the protocol level returns empty peer_id,
     // the message is filtered (ex: bad message size, peer_id unreadable,...).
     // The blacklisting policy is let to the protocol level,
