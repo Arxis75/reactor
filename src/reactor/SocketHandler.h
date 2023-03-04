@@ -164,16 +164,16 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         //Outgoing session-embedded empty msg constructor
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
-        const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
-        
-        // Message attribute allowing session creation on receive
-        virtual inline bool isSessionBootstrapper() const { return true; }
-        
+        inline const shared_ptr<const SocketHandler> getSocketHandler() const { return m_socket_handler.lock(); }
+        inline const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
         inline const sockaddr_in &getSenderAddress() const { return m_sender_address; };
         // Retrieve the sender ID from the message content:
         // - SenderID = peer ID in case of ingres msg,
         // - SenderID = host ID in case of egress msg,
         virtual inline const vector<uint8_t> getSenderID() const = 0;
+
+        // Message attribute allowing session creation on receive
+        virtual inline bool isSessionBootstrapper() const { return true; }
         
         inline void clear() { m_vect.clear(); }
         inline uint64_t size() const { return m_vect.size(); }
