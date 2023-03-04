@@ -19,19 +19,25 @@ using std::min;
 //-----------------------------------------------------------------------------------------------------------
 
 SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
-    : m_session_handler(msg->m_session_handler)
+    : m_socket_handler(msg->m_socket_handler)
+    , m_session_handler(msg->m_session_handler)
     // m_ID is to be built out of the msg content
     , m_vect(msg->m_vect)
+    , m_sender_address(msg->m_sender_address)
 { }
 
-SocketMessage::SocketMessage(const vector<uint8_t> buffer)
-    : m_session_handler(shared_ptr<const SessionHandler>(nullptr))
+SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
+    : m_socket_handler(handler)
+    , m_session_handler(shared_ptr<const SessionHandler>(nullptr))
     // m_ID is to be built out of the msg content
     , m_vect(buffer)
+    , m_sender_address(peer_addr)
 { }
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
-    : m_session_handler(session_handler)
+    : m_socket_handler(session_handler->getSocketHandler())
+    , m_session_handler(session_handler)
+    , m_sender_address(session_handler->getPeerAddress())
 { }
 
 void SocketMessage::print() const
@@ -385,7 +391,7 @@ const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vect
 {
     auto retval = shared_ptr<SocketMessage>(nullptr);
     // This call will invoke the protocol-level constructor
-    shared_ptr<SocketMessage> msg = makeSocketMessage(buffer);
+    shared_ptr<SocketMessage> msg = makeSocketMessage(shared_from_this(), buffer, peer_addr);
     // peer_id is the key that connects a message to its session (UDP, roaming, etc...)
     // - Empty means invalid message,
     vector<uint8_t> peer_id = msg->getSenderID();

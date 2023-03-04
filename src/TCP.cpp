@@ -45,9 +45,9 @@ const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared
     return make_shared<TCPSocketMessage>(session_handler);
 }
 
-const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector<uint8_t> &buffer) const
+const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr) const
 {
-    return make_shared<TCPSocketMessage>(buffer);
+    return make_shared<TCPSocketMessage>(handler, buffer, peer_addr);
 }
 
 const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) const
@@ -61,8 +61,8 @@ const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 //------------------------------------------------------------------------------------------------------
 
-TCPSocketMessage::TCPSocketMessage(const vector<uint8_t> buffer)
-    : SocketMessage(buffer)
+TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
+    : SocketMessage(handler, buffer, peer_addr)
     , m_sender_ID({{0}})
 { }
 

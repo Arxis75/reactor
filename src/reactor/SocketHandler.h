@@ -136,7 +136,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const { return shared_ptr<SocketHandler>(nullptr); }
         virtual const shared_ptr<SessionHandler> makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) = 0;
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const = 0;
-        virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> &buffer) const = 0;
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr) const = 0;
 
     private:
         int m_socket;
@@ -159,9 +159,9 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
     public:
         //Copy Constructor
         SocketMessage(const shared_ptr<const SocketMessage> msg);
-        //Raw msg constructor
-        SocketMessage(const vector<uint8_t> buffer);
-        //session-embedded empty msg
+        //Incoming msg constructor
+        SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr);
+        //Outgoing session-embedded empty msg constructor
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
         const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
@@ -169,6 +169,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         // Message attribute allowing session creation on receive
         virtual inline bool isSessionBootstrapper() const { return true; }
         
+        inline const sockaddr_in &getSenderAddress() const { return m_sender_address; };
         // Retrieve the sender ID from the message content:
         // - SenderID = peer ID in case of ingres msg,
         // - SenderID = host ID in case of egress msg,
@@ -190,11 +191,13 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         void attach(const shared_ptr<const SessionHandler> session_handler) { m_session_handler = session_handler; }
 
     private:
+        weak_ptr<const SocketHandler> m_socket_handler;
         //The Peer ID is a member of the protocol-level msg class
         //It is initialized at protocol-level.
         weak_ptr<const SessionHandler> m_session_handler;
         //The message content:
         vector<uint8_t> m_vect;
+        sockaddr_in m_sender_address;
 };
 
 class SessionHandler: public std::enable_shared_from_this<SessionHandler>

@@ -36,9 +36,9 @@ const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared
     return make_shared<UDPSocketMessage>(session_handler);
 }
 
-const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const vector<uint8_t> &buffer) const
+const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr) const
 {
-    return make_shared<UDPSocketMessage>(buffer);
+    return make_shared<UDPSocketMessage>(handler, buffer, peer_addr);
 }
 
 const vector<uint8_t> UDPSocketHandler::makeSessionKey(const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) const
@@ -54,8 +54,8 @@ const vector<uint8_t> UDPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 //------------------------------------------------------------------------------------------------------
 
-UDPSocketMessage::UDPSocketMessage(const vector<uint8_t> buffer)
-    : SocketMessage(buffer)
+UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
+    : SocketMessage(handler, buffer, peer_addr)
     , m_sender_ID({{0}})
 { }
 
