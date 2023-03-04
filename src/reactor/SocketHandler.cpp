@@ -392,21 +392,20 @@ const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vect
     auto retval = shared_ptr<SocketMessage>(nullptr);
     // This call will invoke the protocol-level constructor
     shared_ptr<SocketMessage> msg = makeSocketMessage(shared_from_this(), buffer, peer_addr);
-    // peer_id is the key that connects a message to its session (UDP, roaming, etc...)
+    // SenderID is the key that connects a message to its session (UDP, roaming, etc...)
     // - Empty means invalid message,
-    vector<uint8_t> peer_id = msg->getSenderID();
     // Simple filtering: if the protocol level returns empty peer_id,
     // the message is filtered (ex: bad message size, peer_id unreadable,...).
     // The blacklisting policy is let to the protocol level,
     // so no blacklisting  done here.
-    if( peer_id.size() )
+    if( msg->getSenderID().size() )
     {
-        auto session = getSessionHandler(makeSessionKey(peer_addr, peer_id));
+        auto session = getSessionHandler(makeSessionKey(peer_addr, msg->getSenderID()));
         //If no existing session, check if this type of message can bootstrap a new session
         if( !session && msg->isSessionBootstrapper() )
         {
             // This call will invoke the protocol-level constructor
-            session = registerSessionHandler(peer_addr, peer_id);
+            session = registerSessionHandler(peer_addr, msg->getSenderID());
         }
         if( session )
         {

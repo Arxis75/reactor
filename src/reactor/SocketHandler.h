@@ -167,10 +167,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         inline const shared_ptr<const SocketHandler> getSocketHandler() const { return m_socket_handler.lock(); }
         inline const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
         inline const sockaddr_in &getSenderAddress() const { return m_sender_address; };
-        // Retrieve the sender ID from the message content:
-        // - SenderID = peer ID in case of ingres msg,
-        // - SenderID = host ID in case of egress msg,
-        virtual inline const vector<uint8_t> getSenderID() const = 0;
+        virtual inline const vector<uint8_t> getSenderID() const { return m_sender_ID; };
 
         // Message attribute allowing session creation on receive
         virtual inline bool isSessionBootstrapper() const { return true; }
@@ -189,6 +186,10 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
     protected:
         friend class SocketHandler;
         void attach(const shared_ptr<const SessionHandler> session_handler) { m_session_handler = session_handler; }
+
+    protected:
+        // protected to allow the derived class to initialize it in its constructor
+        vector<uint8_t> m_sender_ID;
 
     private:
         weak_ptr<const SocketHandler> m_socket_handler;
