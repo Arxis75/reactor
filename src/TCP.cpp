@@ -14,8 +14,28 @@ TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socke
 
 void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
+    msg_in->print();
+
     // test echo
-    sendMessage(msg_in);
+    if( auto server = getSocketHandler() )
+    {
+        // Building Session-full Message:
+        auto msg_out = make_shared<TCPSocketMessage>(shared_from_this());
+        msg_out->push_back(*msg_in.get());
+        sendMessage(msg_out);
+
+        // Building Session-less Message:
+        //auto msg_out = make_shared<const TCPSocketMessage>(server, *msg_in.get(), msg_in->getPeerAddress(), false);
+        //msg_out->print();
+        //const_pointer_cast<SocketHandler>(server)->sendMsg(msg_out);
+    }
+}
+
+void TCPSessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) const
+{
+    msg_out->print();
+
+    SessionHandler::sendMessage(msg_out);
 }
 
 //----------------------------------------------------------------------------------------------------------------
@@ -59,8 +79,8 @@ const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 //------------------------------------------------------------------------------------------------------
 
-TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
-    : SocketMessage(handler, buffer, peer_addr)
+TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress)
+    : SocketMessage(handler, buffer, peer_addr, is_ingress)
 { 
     m_peer_ID = {{0}};
 }
@@ -69,4 +89,14 @@ TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> sessio
     : SocketMessage(session_handler)
 { 
     m_peer_ID = {{0}};
+}
+
+void TCPSocketMessage::print() const
+{
+    cout << "TCP: "<< (isIngress() ? "RECEIVING " : "SENDING ") << dec << size() << " Bytes " << (isIngress() ? "FROM" : "TO") << " @"
+         << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
+         << ", Peer ID = " << hex << (int)getPeerID()[0];
+    if( auto socket = getSocketHandler() )
+        cout << " (socket = " << socket->getSocket() << ")";
+    cout << endl;
 }

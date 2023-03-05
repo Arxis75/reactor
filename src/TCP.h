@@ -8,10 +8,10 @@ using std::vector;
 class TCPSocketMessage: public SocketMessage
 {
     public:
-        TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr);
+        TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress = true);
         TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
-        virtual inline void print() const {};
+        virtual inline void print() const;
 };
 
 class TCPSessionHandler: public SessionHandler
@@ -20,6 +20,7 @@ class TCPSessionHandler: public SessionHandler
         TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id);
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
+        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const;
 };
 
 class TCPSocketHandler: public SocketHandler

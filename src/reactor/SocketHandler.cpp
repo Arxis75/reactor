@@ -27,8 +27,8 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
     , m_peer_address(msg->m_peer_address)
 { }
 
-SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
-    : m_is_ingress(true)
+SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress)
+    : m_is_ingress(is_ingress)
     , m_socket_handler(handler)
     , m_session_handler(shared_ptr<const SessionHandler>(nullptr))
     // m_ID is to be built out of the msg content

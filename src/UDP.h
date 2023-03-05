@@ -8,10 +8,10 @@ using std::vector;
 class UDPSocketMessage: public SocketMessage
 {
     public:
-        UDPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr);
+        UDPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress = true);
         UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
-        virtual inline void print() const {};
+        virtual inline void print() const;
 };
 
 class UDPSessionHandler: public SessionHandler
@@ -20,6 +20,7 @@ class UDPSessionHandler: public SessionHandler
         UDPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id);
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
+        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const;
 };
 
 class UDPSocketHandler: public SocketHandler

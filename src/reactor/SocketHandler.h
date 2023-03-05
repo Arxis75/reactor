@@ -160,7 +160,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         //Copy Constructor
         SocketMessage(const shared_ptr<const SocketMessage> msg);
         //Incoming msg constructor
-        SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr);
+        SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress = true);
         //Outgoing session-embedded empty msg constructor
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
@@ -213,7 +213,7 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
         inline const vector<uint8_t> getPeerID() const { return m_peer_ID; }
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in) = 0;
-        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const ;
+        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const;
 
         virtual void close() const;
 
