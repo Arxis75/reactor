@@ -14,8 +14,6 @@ UDPSessionHandler::UDPSessionHandler(const shared_ptr<const SocketHandler> socke
 
 void UDPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
 {
-    SessionHandler::onNewMessage(msg_in);
-
     // test echo
     sendMessage(msg_in);
 }

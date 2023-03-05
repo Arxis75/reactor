@@ -164,6 +164,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         //Outgoing session-embedded empty msg constructor
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
+        inline const bool isIngress() const { return m_is_ingress; }
         inline const shared_ptr<const SocketHandler> getSocketHandler() const { return m_socket_handler.lock(); }
         inline const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
         inline const sockaddr_in &getPeerAddress() const { return m_peer_address; };
@@ -192,6 +193,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         vector<uint8_t> m_peer_ID;
 
     private:
+        const bool m_is_ingress;
         weak_ptr<const SocketHandler> m_socket_handler;
         //The Peer ID is a member of the protocol-level msg class
         //It is initialized at protocol-level.
@@ -210,7 +212,7 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
         inline const struct sockaddr_in &getPeerAddress() const { return m_peer_address; }
         inline const vector<uint8_t> getPeerID() const { return m_peer_ID; }
 
-        virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
+        virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in) = 0;
         virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const ;
 
         virtual void close() const;

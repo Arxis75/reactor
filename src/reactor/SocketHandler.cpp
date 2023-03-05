@@ -19,7 +19,8 @@ using std::min;
 //-----------------------------------------------------------------------------------------------------------
 
 SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
-    : m_socket_handler(msg->m_socket_handler)
+    : m_is_ingress(msg->m_is_ingress)
+    , m_socket_handler(msg->m_socket_handler)
     , m_session_handler(msg->m_session_handler)
     // m_ID is to be built out of the msg content
     , m_vect(msg->m_vect)
@@ -27,7 +28,8 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
 { }
 
 SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
-    : m_socket_handler(handler)
+    : m_is_ingress(true)
+    , m_socket_handler(handler)
     , m_session_handler(shared_ptr<const SessionHandler>(nullptr))
     // m_ID is to be built out of the msg content
     , m_vect(buffer)
@@ -35,7 +37,8 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, cons
 { }
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
-    : m_socket_handler(session_handler->getSocketHandler())
+    : m_is_ingress(false)
+    , m_socket_handler(session_handler->getSocketHandler())
     , m_session_handler(session_handler)
     , m_peer_address(session_handler->getPeerAddress())
 { }
@@ -58,30 +61,10 @@ const shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() const
     return m_socket_handler.lock();
 }
 
-void SessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
-{
-    if( auto socket = getSocketHandler() )
-    {
-        cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" ) 
-             << ": RECEIVING " << dec << msg_in->size() << " Bytes FROM @" 
-             << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
-             << " (socket = " << socket->getSocket() << ")"
-             << endl;
-    }
-}
-
 void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) const
 {
     if( auto socket = getSocketHandler() )
-    {
-        cout << (socket->getProtocol() == IPPROTO_TCP ? "TCP" : "UDP" )
-             << ": SENDING " << dec << msg_out->size() << " Bytes TO @" 
-             << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
-             << " (socket = " << socket->getSocket() << ")"
-             << endl;
-
         const_pointer_cast<SocketHandler>(socket)->sendMsg(msg_out);
-    }
 }
 
 void SessionHandler::close() const
