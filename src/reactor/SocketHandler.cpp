@@ -23,7 +23,7 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
     , m_session_handler(msg->m_session_handler)
     // m_ID is to be built out of the msg content
     , m_vect(msg->m_vect)
-    , m_sender_address(msg->m_sender_address)
+    , m_peer_address(msg->m_peer_address)
 { }
 
 SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
@@ -31,13 +31,13 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, cons
     , m_session_handler(shared_ptr<const SessionHandler>(nullptr))
     // m_ID is to be built out of the msg content
     , m_vect(buffer)
-    , m_sender_address(peer_addr)
+    , m_peer_address(peer_addr)
 { }
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : m_socket_handler(session_handler->getSocketHandler())
     , m_session_handler(session_handler)
-    , m_sender_address(session_handler->getPeerAddress())
+    , m_peer_address(session_handler->getPeerAddress())
 { }
 
 void SocketMessage::print() const
@@ -308,56 +308,53 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                 while( m_egress.size() )
                 {
                     shared_ptr<const SocketMessage> msg = m_egress.dequeue();
-                    auto session = msg->getSessionHandler();
-                    if( session )
+
+                    //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
+                    //    << " => @" << inet_ntoa(msg->getPeerAddress().sin_addr)
+                    //    << ":" << ntohs(msg->getPeerAddress().sin_port)
+                    //    << ", " << msg->size() << " Bytes requested to be sent" << endl;
+
+                    ssize_t nbytes_sent = 0, already_sent = 0;
+                    if( m_protocol == IPPROTO_UDP )
                     {
-                        //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
-                        //    << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
-                        //    << ":" << ntohs(session->getPeerAddress().sin_port)
-                        //    << ", " << msg->size() << " Bytes requested to be sent" << endl;
-
-                        ssize_t nbytes_sent = 0, already_sent = 0;
-                        if( m_protocol == IPPROTO_UDP )
+                        // Asserts here that the UDP buffer is large enough to send the whole datagramm
+                        // Big datagrams are not recommended because there is no way to recover
+                        // lost packets from the datagram fragmentation at IP level by the MTU.
+                        size_t send_size =  msg->size();
+                        assert(send_size <= sizeof(buffer));
+                        
+                        memcpy(&buffer[0], msg.get()[0], send_size);
+                        
+                        struct sockaddr_in peer_address = msg->getPeerAddress();
+                        socklen_t len = sizeof(peer_address);
+                        nbytes_sent = sendto(m_socket, buffer, send_size, MSG_NOSIGNAL, (const struct sockaddr *)&peer_address, len );
+                        already_sent = nbytes_sent;
+                    }
+                    else
+                    {   //TCP:
+                        while( already_sent < msg->size() )
                         {
-                            // Asserts here that the UDP buffer is large enough to send the whole datagramm
-                            // Big datagrams are not recommended because there is no way to recover
-                            // lost packets from the datagram fragmentation at IP level by the MTU.
-                            size_t send_size =  msg->size();
-                            assert(send_size <= sizeof(buffer));
-                            
-                            memcpy(&buffer[0], msg.get()[0], send_size);
-                            
-                            struct sockaddr_in peer_address = session->getPeerAddress();
-                            socklen_t len = sizeof(peer_address);
-                            nbytes_sent = sendto(m_socket, buffer, send_size, MSG_NOSIGNAL, (const struct sockaddr *)&peer_address, len );
-                            already_sent = nbytes_sent;
-                        }
-                        else
-                        {   //TCP:
-                            while( already_sent < msg->size() )
+                            size_t send_size =  min(msg->size() - already_sent, sizeof(buffer));
+                            memcpy(&buffer[0], msg.get()[already_sent], send_size);
+
+                            nbytes_sent = send(m_socket, buffer, send_size, MSG_NOSIGNAL);
+
+                            if( nbytes_sent > 0 )    
+                                already_sent += nbytes_sent;
+                            else if( nbytes_sent == 0 )
+                                break;
+                            else if( nbytes_sent == -1 && (errno!=EAGAIN) )
                             {
-                                size_t send_size =  min(msg->size() - already_sent, sizeof(buffer));
-                                memcpy(&buffer[0], msg.get()[already_sent], send_size);
-
-                                nbytes_sent = send(m_socket, buffer, send_size, MSG_NOSIGNAL);
-
-                                if( nbytes_sent > 0 )    
-                                    already_sent += nbytes_sent;
-                                else if( nbytes_sent == 0 )
-                                    break;
-                                else if( nbytes_sent == -1 && (errno!=EAGAIN) )
-                                {
-                                    cout << "Error: socket " << m_socket << " write error..." << endl;
-                                    break;
-                                }
+                                cout << "Error: socket " << m_socket << " write error..." << endl;
+                                break;
                             }
                         }
-
-                        //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
-                        //    << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
-                        //    << ":" << ntohs(session->getPeerAddress().sin_port)
-                        //    << ", " << already_sent << " Bytes sent" << endl;
                     }
+
+                    //cout << dec << "@ " << (m_protocol == IPPROTO_TCP ? "TCP" : "UDP") << " socket = " << m_socket
+                    //    << " => @" << inet_ntoa(session->getPeerAddress().sin_addr)
+                    //    << ":" << ntohs(session->getPeerAddress().sin_port)
+                    //    << ", " << already_sent << " Bytes sent" << endl;
                 }
             }
         }
@@ -392,20 +389,20 @@ const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vect
     auto retval = shared_ptr<SocketMessage>(nullptr);
     // This call will invoke the protocol-level constructor
     shared_ptr<SocketMessage> msg = makeSocketMessage(shared_from_this(), buffer, peer_addr);
-    // SenderID is the key that connects a message to its session (UDP, roaming, etc...)
+    // PeerID is the key that connects a message to its session (UDP, roaming, etc...)
     // - Empty means invalid message,
-    // Simple filtering: if the protocol level returns empty peer_id,
+    // Simple filtering: if the protocol level returns empty PeerID,
     // the message is filtered (ex: bad message size, peer_id unreadable,...).
     // The blacklisting policy is let to the protocol level,
     // so no blacklisting  done here.
-    if( msg->getSenderID().size() )
+    if( msg->getPeerID().size() )
     {
-        auto session = getSessionHandler(makeSessionKey(peer_addr, msg->getSenderID()));
+        auto session = getSessionHandler(makeSessionKey(peer_addr, msg->getPeerID()));
         //If no existing session, check if this type of message can bootstrap a new session
         if( !session && msg->isSessionBootstrapper() )
         {
             // This call will invoke the protocol-level constructor
-            session = registerSessionHandler(peer_addr, msg->getSenderID());
+            session = registerSessionHandler(peer_addr, msg->getPeerID());
         }
         if( session )
         {

@@ -166,8 +166,8 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
 
         inline const shared_ptr<const SocketHandler> getSocketHandler() const { return m_socket_handler.lock(); }
         inline const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
-        inline const sockaddr_in &getSenderAddress() const { return m_sender_address; };
-        virtual inline const vector<uint8_t> getSenderID() const { return m_sender_ID; };
+        inline const sockaddr_in &getPeerAddress() const { return m_peer_address; };
+        virtual inline const vector<uint8_t> getPeerID() const { return m_peer_ID; };
 
         // Message attribute allowing session creation on receive
         virtual inline bool isSessionBootstrapper() const { return true; }
@@ -189,7 +189,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
 
     protected:
         // protected to allow the derived class to initialize it in its constructor
-        vector<uint8_t> m_sender_ID;
+        vector<uint8_t> m_peer_ID;
 
     private:
         weak_ptr<const SocketHandler> m_socket_handler;
@@ -198,7 +198,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         weak_ptr<const SessionHandler> m_session_handler;
         //The message content:
         vector<uint8_t> m_vect;
-        sockaddr_in m_sender_address;
+        sockaddr_in m_peer_address;
 };
 
 class SessionHandler: public std::enable_shared_from_this<SessionHandler>

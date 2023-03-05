@@ -45,7 +45,7 @@ const vector<uint8_t> UDPSocketHandler::makeSessionKey(const struct sockaddr_in 
 {
     vector<uint8_t> key;
     key.resize(peer_id.size() + 6);
-    if (peer_id.size())
+    if( peer_id.size() )
         memcpy(&key[0], &peer_id[0], peer_id.size());
     memcpy(&key[peer_id.size()], &peer_address.sin_addr.s_addr, 4);
     memcpy(&key[peer_id.size() + 4], &peer_address.sin_port, 2);
@@ -56,10 +56,12 @@ const vector<uint8_t> UDPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
     : SocketMessage(handler, buffer, peer_addr)
-    , m_sender_ID({{0}})
-{ }
+{ 
+    m_peer_ID = {{0}};
+}
 
 UDPSocketMessage::UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
-    , m_sender_ID({{0}})
-{ }
+{ 
+    m_peer_ID = {{0}};
+}

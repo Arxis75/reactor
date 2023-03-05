@@ -28,7 +28,7 @@ TCPSocketHandler::TCPSocketHandler( const uint16_t binding_port)
 
 TCPSocketHandler::TCPSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler)
     : SocketHandler(socket, master_handler)
-{ /*USELESS TCP INTERFACE*/ }
+{ }
 
 const shared_ptr<SocketHandler> TCPSocketHandler::makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const
 { 
@@ -63,10 +63,12 @@ const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in 
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
     : SocketMessage(handler, buffer, peer_addr)
-    , m_sender_ID({{0}})
-{ }
+{ 
+    m_peer_ID = {{0}};
+}
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
-    , m_sender_ID({{0}})
-{ }
+{ 
+    m_peer_ID = {{0}};
+}

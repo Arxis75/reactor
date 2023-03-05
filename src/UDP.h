@@ -10,13 +10,8 @@ class UDPSocketMessage: public SocketMessage
     public:
         UDPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr);
         UDPSocketMessage(const shared_ptr<const SessionHandler> session_handler);
-        
-        virtual inline const vector<uint8_t> getSenderID() const { return m_sender_ID; }
 
         virtual inline void print() const {};
-
-    private:
-        const vector<uint8_t> m_sender_ID;
 };
 
 class UDPSessionHandler: public SessionHandler
