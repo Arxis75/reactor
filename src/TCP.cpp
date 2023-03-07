@@ -58,11 +58,6 @@ const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const shar
     return make_shared<TCPSessionHandler>(socket_handler, peer_address, peer_id);
 }
 
-const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const
-{
-    return make_shared<TCPSocketMessage>(session_handler);
-}
-
 const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr) const
 {
     return make_shared<TCPSocketMessage>(handler, buffer, peer_addr);

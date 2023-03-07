@@ -49,11 +49,6 @@ const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const shar
     return make_shared<UDPSessionHandler>(socket_handler, peer_address, peer_id);
 }
 
-const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared_ptr<const SessionHandler> session_handler) const
-{
-    return make_shared<UDPSocketMessage>(session_handler);
-}
-
 const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr) const
 {
     return make_shared<UDPSocketMessage>(handler, buffer, peer_addr);
