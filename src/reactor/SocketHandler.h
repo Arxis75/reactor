@@ -182,11 +182,9 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         inline void push_back(const uint8_t value) { m_vect.push_back(value); }
         inline void push_back(const vector<uint8_t> v) { m_vect.insert(m_vect.end(), v.begin(), v.end());; }
 
-        virtual void print() const;
-    
-    protected:
-        friend class SocketHandler;
         void attach(const shared_ptr<const SessionHandler> session_handler) { m_session_handler = session_handler; }
+
+        virtual void print() const;
 
     protected:
         // protected to allow the derived class to initialize it in its constructor
