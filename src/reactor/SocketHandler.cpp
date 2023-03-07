@@ -22,7 +22,7 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
     : m_is_ingress(msg->m_is_ingress)
     , m_socket_handler(msg->m_socket_handler)
     , m_session_handler(msg->m_session_handler)
-    // m_ID is to be built out of the msg content
+    , m_peer_ID(msg->m_peer_ID)
     , m_vect(msg->m_vect)
     , m_peer_address(msg->m_peer_address)
 { }
@@ -31,7 +31,7 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, cons
     : m_is_ingress(is_ingress)
     , m_socket_handler(handler)
     , m_session_handler(shared_ptr<const SessionHandler>(nullptr))
-    // m_ID is to be built out of the msg content
+    , m_peer_ID({{0}})
     , m_vect(buffer)
     , m_peer_address(peer_addr)
 { }
@@ -40,6 +40,7 @@ SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_hand
     : m_is_ingress(false)
     , m_socket_handler(session_handler->getSocketHandler())
     , m_session_handler(session_handler)
+    , m_peer_ID(session_handler->getPeerID())
     , m_peer_address(session_handler->getPeerAddress())
 { }
 
