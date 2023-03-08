@@ -31,7 +31,7 @@ void UDPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_i
     }
 }
 
-void UDPSessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) const
+void UDPSessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
 {
     msg_out->print();
 

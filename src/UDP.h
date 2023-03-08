@@ -20,7 +20,7 @@ class UDPSessionHandler: public SessionHandler
         UDPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id);
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
-        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out) const;
+        virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out);
 };
 
 class UDPSocketHandler: public SocketHandler

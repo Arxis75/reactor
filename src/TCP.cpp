@@ -31,7 +31,7 @@ void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_i
     }
 }
 
-void TCPSessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) const
+void TCPSessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
 {
     msg_out->print();
 

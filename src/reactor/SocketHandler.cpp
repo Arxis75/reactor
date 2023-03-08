@@ -62,7 +62,7 @@ const shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() const
     return m_socket_handler.lock();
 }
 
-void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out) const
+void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
 {
     if( auto socket = getSocketHandler() )
         const_pointer_cast<SocketHandler>(socket)->sendMsg(msg_out);
