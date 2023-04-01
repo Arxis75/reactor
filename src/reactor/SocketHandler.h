@@ -104,7 +104,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         inline int getTCPConnectionBacklogSize() const { return m_tcp_connection_backlog_size; };
 
         // Registers a session handler for a particular peer
-        const shared_ptr<const SessionHandler> registerSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address);
+        const shared_ptr<const SessionHandler> registerSessionHandler(const struct sockaddr_in &peer_address);
         // Gets the session handler for a particular peer
         const shared_ptr<const SessionHandler> getSessionHandler(const vector<uint8_t> &session_key) const;
         // Gets the current number of living sessions
@@ -115,14 +115,18 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         void blacklist(const bool status, const struct sockaddr_in &peer_address);
         bool isBlacklisted(const struct sockaddr_in &peer_address) const;
 
-        // Constructs a basic unique key from IP:Port
+        // Constructs a basic unique key from 'IP || Port'
         const uint64_t makeAddressKey(const struct sockaddr_in &peer_addr) const;
 
         static bool isInternalAddress(const struct sockaddr_in &addr);
 
-        virtual const shared_ptr<SessionHandler> makeSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address) = 0;
+        virtual const shared_ptr<SessionHandler> makeSessionHandler(const struct sockaddr_in &peer_address) = 0;
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const = 0;
         
+        // Constructs a session unique key from a message 
+        // By default, the key of a session is 'IP || PORT'
+        virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_address) const;
+
     protected:
         int bindSocket(const uint16_t port);
         int acceptConnection() const;
@@ -156,7 +160,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         //Copy Constructor
         SocketMessage(const shared_ptr<const SocketMessage> msg);
         //Incoming msg constructor
-        SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_address, const bool is_ingress);
+        SocketMessage(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_address, const bool is_ingress);
         //Outgoing session-embedded empty msg constructor
         SocketMessage(const shared_ptr<const SessionHandler> session_handler);
 
@@ -177,10 +181,6 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         inline void push_back(const uint8_t value) { m_vect.push_back(value); }
         inline void push_back(const vector<uint8_t> v) { m_vect.insert(m_vect.end(), v.begin(), v.end());; }
 
-        // Constructs a session unique key from a message 
-        // By default, the key of a session is 'IP || PORT'
-        virtual const vector<uint8_t> makeSessionKey() const;
-
         virtual void print() const;
 
     private:
@@ -195,7 +195,7 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
 class SessionHandler: public std::enable_shared_from_this<SessionHandler>
 {
     public:
-        SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address);
+        SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
     
         const shared_ptr<const SocketHandler> getSocketHandler() const { return m_socket_handler.lock(); }
         inline const vector<uint8_t> &getKey() const { return m_key; }

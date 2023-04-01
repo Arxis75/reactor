@@ -8,8 +8,8 @@ using std::dec;
 using std::endl;
 using std::dynamic_pointer_cast;
 
-UDPSessionHandler::UDPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
-    : SessionHandler(socket_handler, session_key, peer_address)
+UDPSessionHandler::UDPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+    : SessionHandler(socket_handler, peer_address)
 { }
 
 void UDPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
@@ -44,9 +44,9 @@ UDPSocketHandler::UDPSocketHandler( const uint16_t binding_port)
     : SocketHandler(binding_port, IPPROTO_UDP, 1374, 1374, 0)
 { }
 
-const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
+const shared_ptr<SessionHandler> UDPSocketHandler::makeSessionHandler(const struct sockaddr_in &peer_address)
 {
-    return make_shared<UDPSessionHandler>(shared_from_this(), session_key, peer_address);
+    return make_shared<UDPSessionHandler>(shared_from_this(), peer_address);
 }
 
 const shared_ptr<SocketMessage> UDPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const

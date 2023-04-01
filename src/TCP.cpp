@@ -8,8 +8,8 @@ using std::dec;
 using std::endl;
 using std::dynamic_pointer_cast;
 
-TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
-    : SessionHandler(socket_handler, session_key, peer_address)
+TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+    : SessionHandler(socket_handler, peer_address)
 { }
 
 void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
@@ -53,9 +53,9 @@ const shared_ptr<SocketHandler> TCPSocketHandler::makeSocketHandler(const int so
     return make_shared<TCPSocketHandler>(socket, master_handler);
 }
 
-const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
+const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const struct sockaddr_in &peer_address)
 {
-    return make_shared<TCPSessionHandler>(shared_from_this(), session_key, peer_address);
+    return make_shared<TCPSessionHandler>(shared_from_this(), peer_address);
 }
 
 const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const

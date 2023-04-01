@@ -17,7 +17,7 @@ class TCPSocketMessage: public SocketMessage
 class TCPSessionHandler: public SessionHandler
 {
     public:
-        TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address);
+        TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address);
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in);
         virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out);
@@ -31,6 +31,6 @@ class TCPSocketHandler: public SocketHandler
 
     protected:
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const;
-        virtual const shared_ptr<SessionHandler> makeSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address);
+        virtual const shared_ptr<SessionHandler> makeSessionHandler(const struct sockaddr_in &peer_address);
         virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const;
 };

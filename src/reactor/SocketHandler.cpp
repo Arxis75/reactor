@@ -26,17 +26,13 @@ SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
     , m_vect(msg->m_vect)
 { }
 
-SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_address, const bool is_ingress)
+SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_address, const bool is_ingress)
     : m_is_ingress(is_ingress)
     , m_peer_address(peer_address)
-    , m_socket_handler(handler)
-    //m_session_handler
+    , m_socket_handler(socket_handler)
+    , m_session_handler(const_pointer_cast<SocketHandler>(socket_handler)->registerSessionHandler(peer_address))
     , m_vect(buffer)
-{
-    const vector<uint8_t> key = makeSessionKey();
-    if( !handler->getSessionHandler(key) )
-        m_session_handler = const_pointer_cast<SocketHandler>(handler)->registerSessionHandler(makeSessionKey(), peer_address);
-}
+{ }
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : m_is_ingress(false)
@@ -46,16 +42,6 @@ SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_hand
     //m_vect
 { }
 
-const vector<uint8_t> SocketMessage::makeSessionKey() const
-{
-    //By default, the key of a session is 'IP || PORT'
-    vector<uint8_t> key;
-    key.resize(6);
-    memcpy(&key[0], &getPeerAddress().sin_addr.s_addr, 4);
-    memcpy(&key[4], &getPeerAddress().sin_port, 2);
-    return key;
-}
-
 void SocketMessage::print() const
 {
     //Print the raw content of the vector
@@ -63,8 +49,8 @@ void SocketMessage::print() const
 }
 //-----------------------------------------------------------------------------------------------------------
 
-SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
-    : m_key(session_key)
+SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address)
+    : m_key(socket_handler->makeSessionKey(peer_address))
     , m_peer_address(peer_address)
     , m_socket_handler(socket_handler)
 { }
@@ -395,12 +381,27 @@ void SocketHandler::stop()
 
 //----------------------------------- MASTER SOCKET OPERATIONS --------------------------------------------
 
-// Register an Session_Handler of a particular peer
-const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
+const vector<uint8_t> SocketHandler::makeSessionKey(const struct sockaddr_in &peer_address) const
 {
-    // This call will invoke the protocol-level constructor
-    shared_ptr<SessionHandler> session_handler = makeSessionHandler(session_key, peer_address);
-    auto inserted = m_session_handler_list.insert(make_pair(session_key, session_handler));
+    //By default, the key of a session is 'IP || PORT'
+    vector<uint8_t> key;
+    key.resize(6);
+    memcpy(&key[0], &peer_address.sin_addr.s_addr, 4);
+    memcpy(&key[4], &peer_address.sin_port, 2);
+    return key;
+}
+
+// Register an Session_Handler of a particular peer
+const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &peer_address)
+{
+    auto session_handler = getSessionHandler(makeSessionKey(peer_address));
+    if( !session_handler )
+    {
+        // If no previous session => create one
+        session_handler = makeSessionHandler(peer_address);
+        // and record it
+        auto inserted = m_session_handler_list.insert(make_pair(session_handler->getKey(), session_handler));
+    }
     return session_handler;
 }
 
