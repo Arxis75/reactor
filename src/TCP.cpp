@@ -8,8 +8,8 @@ using std::dec;
 using std::endl;
 using std::dynamic_pointer_cast;
 
-TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
-    : SessionHandler(socket_handler, peer_address, peer_id)
+TCPSessionHandler::TCPSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
+    : SessionHandler(socket_handler, session_key, peer_address)
 { }
 
 void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_in)
@@ -19,12 +19,12 @@ void TCPSessionHandler::onNewMessage(const shared_ptr<const SocketMessage> msg_i
     // test echo
     if( auto server = getSocketHandler() )
     {
-        // Building Session-full Message:
+        // Building from this session:
         auto msg_out = make_shared<TCPSocketMessage>(shared_from_this());
         msg_out->push_back(*msg_in.get());
         sendMessage(msg_out);
 
-        // Building Session-less Message:
+        // Building raw Message:
         //auto msg_out = make_shared<const TCPSocketMessage>(server, *msg_in.get(), msg_in->getPeerAddress(), false);
         //msg_out->print();
         //const_pointer_cast<SocketHandler>(server)->sendMsg(msg_out);
@@ -53,44 +53,30 @@ const shared_ptr<SocketHandler> TCPSocketHandler::makeSocketHandler(const int so
     return make_shared<TCPSocketHandler>(socket, master_handler);
 }
 
-const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
+const shared_ptr<SessionHandler> TCPSocketHandler::makeSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
 {
-    return make_shared<TCPSessionHandler>(socket_handler, peer_address, peer_id);
+    return make_shared<TCPSessionHandler>(shared_from_this(), session_key, peer_address);
 }
 
-const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr) const
+const shared_ptr<SocketMessage> TCPSocketHandler::makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const
 {
-    return make_shared<TCPSocketMessage>(handler, buffer, peer_addr);
-}
-
-const vector<uint8_t> TCPSocketHandler::makeSessionKey(const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id) const
-{
-    vector<uint8_t> key;
-    key.resize(6);
-    memcpy(&key[peer_id.size()], &peer_address.sin_addr.s_addr, 4);
-    memcpy(&key[peer_id.size() + 4], &peer_address.sin_port, 2);
-    return key;
+    return make_shared<TCPSocketMessage>(shared_from_this(), buffer, peer_address);
 }
 
 //------------------------------------------------------------------------------------------------------
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress)
     : SocketMessage(handler, buffer, peer_addr, is_ingress)
-{ 
-    m_peer_ID = {{0}};
-}
+{ }
 
 TCPSocketMessage::TCPSocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : SocketMessage(session_handler)
-{ 
-    m_peer_ID = {{0}};
-}
+{ }
 
 void TCPSocketMessage::print() const
 {
     cout << "TCP: "<< (isIngress() ? "RECEIVING " : "SENDING ") << dec << size() << " Bytes " << (isIngress() ? "FROM" : "TO") << " @"
-         << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port)
-         << ", Peer ID = " << hex << (int)getPeerID()[0];
+         << inet_ntoa(getPeerAddress().sin_addr) << ":" << ntohs(getPeerAddress().sin_port);
     if( auto socket = getSocketHandler() )
         cout << " (socket = " << socket->getSocket() << ")";
     cout << endl;

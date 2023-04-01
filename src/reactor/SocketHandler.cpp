@@ -20,29 +20,41 @@ using std::min;
 
 SocketMessage::SocketMessage(const shared_ptr<const SocketMessage> msg)
     : m_is_ingress(msg->m_is_ingress)
+    , m_peer_address(msg->m_peer_address)
     , m_socket_handler(msg->m_socket_handler)
     , m_session_handler(msg->m_session_handler)
-    , m_peer_ID(msg->m_peer_ID)
     , m_vect(msg->m_vect)
-    , m_peer_address(msg->m_peer_address)
 { }
 
-SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr, const bool is_ingress)
+SocketMessage::SocketMessage(const shared_ptr<const SocketHandler> handler, const vector<uint8_t> buffer, const struct sockaddr_in &peer_address, const bool is_ingress)
     : m_is_ingress(is_ingress)
+    , m_peer_address(peer_address)
     , m_socket_handler(handler)
-    , m_session_handler(shared_ptr<const SessionHandler>(nullptr))
-    , m_peer_ID({{0}})
+    //m_session_handler
     , m_vect(buffer)
-    , m_peer_address(peer_addr)
-{ }
+{
+    const vector<uint8_t> key = makeSessionKey();
+    if( !handler->getSessionHandler(key) )
+        m_session_handler = const_pointer_cast<SocketHandler>(handler)->registerSessionHandler(makeSessionKey(), peer_address);
+}
 
 SocketMessage::SocketMessage(const shared_ptr<const SessionHandler> session_handler)
     : m_is_ingress(false)
+    , m_peer_address(session_handler->getPeerAddress())
     , m_socket_handler(session_handler->getSocketHandler())
     , m_session_handler(session_handler)
-    , m_peer_ID(session_handler->getPeerID())
-    , m_peer_address(session_handler->getPeerAddress())
+    //m_vect
 { }
+
+const vector<uint8_t> SocketMessage::makeSessionKey() const
+{
+    //By default, the key of a session is 'IP || PORT'
+    vector<uint8_t> key;
+    key.resize(6);
+    memcpy(&key[0], &getPeerAddress().sin_addr.s_addr, 4);
+    memcpy(&key[4], &getPeerAddress().sin_port, 2);
+    return key;
+}
 
 void SocketMessage::print() const
 {
@@ -51,16 +63,11 @@ void SocketMessage::print() const
 }
 //-----------------------------------------------------------------------------------------------------------
 
-SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const struct sockaddr_in &peer_address, const vector<uint8_t> &peer_id)
-    : m_socket_handler(socket_handler)
+SessionHandler::SessionHandler(const shared_ptr<const SocketHandler> socket_handler, const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
+    : m_key(session_key)
     , m_peer_address(peer_address)
-    , m_peer_ID(peer_id)
+    , m_socket_handler(socket_handler)
 { }
-
-const shared_ptr<const SocketHandler> SessionHandler::getSocketHandler() const
-{
-    return m_socket_handler.lock();
-}
 
 void SessionHandler::sendMessage(const shared_ptr<const SocketMessage> msg_out)
 {
@@ -226,7 +233,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                                 // We make the assumption here that the read buffer size is big
                                 // enough to contain the largest message, i.e. 1 datagram = 1 msg
                                 // The following call invokes the protocol-level constructors
-                                dispatchMessage(makeMessageWithSession(msg, peer_address));
+                                dispatchMessage(makeSocketMessage(msg, peer_address));
                             }
                         }
                         else if( nbytes_read == 0 )
@@ -270,7 +277,7 @@ int SocketHandler::handleEvent(const struct epoll_event& event)
                         }
 
                         // Dispatch the message to the session
-                        dispatchMessage(makeMessageWithSession(msg, peer_address));
+                        dispatchMessage(makeSocketMessage(msg, peer_address));
                     }
                 }
             }
@@ -368,35 +375,6 @@ const uint64_t SocketHandler::makeAddressKey(const struct sockaddr_in &peer_addr
     return ret;
 }
 
-const shared_ptr<SocketMessage> SocketHandler::makeMessageWithSession(const vector<uint8_t> buffer, const struct sockaddr_in &peer_addr)
-{
-    auto retval = shared_ptr<SocketMessage>(nullptr);
-    // This call will invoke the protocol-level constructor
-    shared_ptr<SocketMessage> msg = makeSocketMessage(shared_from_this(), buffer, peer_addr);
-    // PeerID is the key that connects a message to its session (UDP, roaming, etc...)
-    // - Empty means invalid message,
-    // Simple filtering: if the protocol level returns empty PeerID,
-    // the message is filtered (ex: bad message size, peer_id unreadable,...).
-    // The blacklisting policy is let to the protocol level,
-    // so no blacklisting  done here.
-    if( msg->getPeerID().size() )
-    {
-        auto session = getSessionHandler(makeSessionKey(peer_addr, msg->getPeerID()));
-        //If no existing session, check if this type of message can bootstrap a new session
-        if( !session && msg->isSessionBootstrapper() )
-        {
-            // This call will invoke the protocol-level constructor
-            session = registerSessionHandler(peer_addr, msg->getPeerID());
-        }
-        if( session )
-        {
-            msg->attach(session);
-            retval = msg;
-        }
-    }
-    return msg;
-}
-
 void SocketHandler::dispatchMessage(const shared_ptr<const SocketMessage> msg)
 {
     //By default, dispatch the message to the message's session handler
@@ -418,11 +396,11 @@ void SocketHandler::stop()
 //----------------------------------- MASTER SOCKET OPERATIONS --------------------------------------------
 
 // Register an Session_Handler of a particular peer
-const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const struct sockaddr_in &peer_addr, const vector<uint8_t> &peer_id)
+const shared_ptr<const SessionHandler> SocketHandler::registerSessionHandler(const vector<uint8_t> &session_key, const struct sockaddr_in &peer_address)
 {
     // This call will invoke the protocol-level constructor
-    shared_ptr<SessionHandler> session_handler = makeSessionHandler(shared_from_this(), peer_addr, peer_id);
-    auto inserted = m_session_handler_list.insert(make_pair(makeSessionKey(peer_addr, peer_id), session_handler));
+    shared_ptr<SessionHandler> session_handler = makeSessionHandler(session_key, peer_address);
+    auto inserted = m_session_handler_list.insert(make_pair(session_key, session_handler));
     return session_handler;
 }
 
@@ -439,7 +417,7 @@ const shared_ptr<const SessionHandler> SocketHandler::getSessionHandler(const ve
 // Remove an Session_Handler of a particular peer.
 void SocketHandler::removeSessionHandler(shared_ptr<const SessionHandler> session)
 {
-    m_session_handler_list.erase(makeSessionKey(session->getPeerAddress(), session->getPeerID()));
+    m_session_handler_list.erase(session->getKey());
     
     if( m_protocol == IPPROTO_TCP && !m_is_listening_socket)
         // Destruct the connected TCP SocketHandler
