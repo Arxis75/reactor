@@ -119,10 +119,7 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         const uint64_t makeAddressKey(const struct sockaddr_in &peer_addr) const;
 
         static bool isInternalAddress(const struct sockaddr_in &addr);
-
-        virtual const shared_ptr<SessionHandler> makeSessionHandler(const struct sockaddr_in &peer_address) = 0;
-        virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const = 0;
-        
+      
         // Constructs a session unique key from a message 
         // By default, the key of a session is 'IP || PORT'
         virtual const vector<uint8_t> makeSessionKey(const struct sockaddr_in &peer_address) const;
@@ -136,7 +133,10 @@ class SocketHandler: public std::enable_shared_from_this<SocketHandler>
         //By default, dispatch to the message session
         virtual void dispatchMessage(const shared_ptr<const SocketMessage> msg);
         
+    private:
         virtual const shared_ptr<SocketHandler> makeSocketHandler(const int socket, const shared_ptr<const SocketHandler> master_handler) const { return shared_ptr<SocketHandler>(nullptr); }
+        virtual const shared_ptr<SessionHandler> makeSessionHandler(const struct sockaddr_in &peer_address) = 0;
+        virtual const shared_ptr<SocketMessage> makeSocketMessage(const vector<uint8_t> buffer, const struct sockaddr_in &peer_address) const = 0;
 
     private:
         int m_socket;
@@ -168,9 +168,6 @@ class SocketMessage: public std::enable_shared_from_this<SocketMessage>
         inline const shared_ptr<const SocketHandler> getSocketHandler() const { return m_socket_handler.lock(); }
         inline const shared_ptr<const SessionHandler> getSessionHandler() const { return m_session_handler.lock(); }
         inline const sockaddr_in &getPeerAddress() const { return m_peer_address; };
-
-        // Message attribute allowing session creation on receive
-        virtual inline bool isSessionBootstrapper() const { return true; }
         
         inline void clear() { m_vect.clear(); }
         inline uint64_t size() const { return m_vect.size(); }
@@ -203,7 +200,6 @@ class SessionHandler: public std::enable_shared_from_this<SessionHandler>
 
         virtual void onNewMessage(const shared_ptr<const SocketMessage> msg_in) = 0;
         virtual void sendMessage(const shared_ptr<const SocketMessage> msg_out);
-
         virtual void close() const;
 
     private:
